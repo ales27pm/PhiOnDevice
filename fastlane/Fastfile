@@ -1,0 +1,88 @@
+# Fastfile for Phi-4 Reasoning App
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Push a new beta build to TestFlight"
+  lane :beta do
+    # Increment build number
+    increment_build_number(xcodeproj: "ios/Phi4Reasoning.xcodeproj")
+    
+    # Build the app
+    build_app(
+      workspace: "ios/Phi4Reasoning.xcworkspace", 
+      scheme: "Phi4Reasoning",
+      configuration: "Release",
+      export_method: "app-store",
+      export_options: {
+        provisioningProfiles: {
+          "com.vibecode.phi4reasoning" => "Phi4Reasoning Production"
+        }
+      }
+    )
+    
+    # Upload to TestFlight
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+      changelog: "Latest improvements to Phi-4 mathematical reasoning capabilities"
+    )
+  end
+
+  desc "Deploy to App Store"
+  lane :release do
+    # Increment version number
+    increment_version_number(xcodeproj: "ios/Phi4Reasoning.xcodeproj")
+    
+    # Build the app
+    build_app(
+      workspace: "ios/Phi4Reasoning.xcworkspace", 
+      scheme: "Phi4Reasoning",
+      configuration: "Release",
+      export_method: "app-store"
+    )
+    
+    # Upload to App Store
+    upload_to_app_store(
+      force: true,
+      reject_if_possible: true,
+      skip_metadata: false,
+      skip_screenshots: false,
+      precheck_include_in_app_purchases: false
+    )
+  end
+
+  desc "Take screenshots"
+  lane :screenshots do
+    capture_screenshots(workspace: "ios/Phi4Reasoning.xcworkspace", scheme: "Phi4Reasoning")
+  end
+end
+
+platform :android do
+  desc "Submit a new Beta Build to Play Store"
+  lane :beta do
+    gradle(
+      task: "bundle",
+      build_type: "Release",
+      project_dir: "android/"
+    )
+    
+    upload_to_play_store(
+      track: "beta",
+      aab: "android/app/build/outputs/bundle/release/app-release.aab"
+    )
+  end
+
+  desc "Deploy to Play Store"
+  lane :release do
+    gradle(
+      task: "bundle",
+      build_type: "Release",
+      project_dir: "android/"
+    )
+    
+    upload_to_play_store(
+      track: "production",
+      aab: "android/app/build/outputs/bundle/release/app-release.aab"
+    )
+  end
+end

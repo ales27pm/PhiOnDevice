@@ -1,0 +1,8 @@
+# iOS
+app_identifier("com.vibecode.phi4reasoning")
+apple_id("your-apple-id@example.com")
+team_id("YOUR_TEAM_ID")
+
+# Android
+json_key_file("path/to/google-play-service-account.json")
+package_name("com.vibecode.phi4reasoning")

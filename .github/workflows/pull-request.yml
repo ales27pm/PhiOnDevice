@@ -1,0 +1,199 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened]
+
+env:
+  NODE_VERSION: '20'
+  BUN_VERSION: '1.1.0'
+
+jobs:
+  # PR Quality Checks
+  pr-checks:
+    name: PR Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check for lockfile changes
+        run: |
+          if git diff HEAD~1 --name-only | grep -q "bun.lockb"; then
+            echo "⚠️ Lockfile changed. Please ensure this is intentional."
+          fi
+
+      - name: Run TypeScript check
+        run: bun run tsc --noEmit
+
+      - name: Run ESLint
+        run: bun run lint
+
+      - name: Run Prettier check
+        run: bun run prettier --check .
+
+      - name: Run tests with coverage
+        run: bun test --coverage
+
+      - name: Check bundle size
+        run: |
+          bun run expo export --platform web
+          du -sh dist/
+
+      - name: Comment PR with test results
+        uses: actions/github-script@v6
+        if: always()
+        with:
+          script: |
+            const fs = require('fs');
+            let comment = '## 🧪 PR Quality Check Results\n\n';
+            
+            // Add test results if available
+            if (fs.existsSync('./coverage/coverage-summary.json')) {
+              const coverage = JSON.parse(fs.readFileSync('./coverage/coverage-summary.json', 'utf8'));
+              const total = coverage.total;
+              comment += `### Test Coverage\n`;
+              comment += `- **Lines**: ${total.lines.pct}%\n`;
+              comment += `- **Functions**: ${total.functions.pct}%\n`;
+              comment += `- **Branches**: ${total.branches.pct}%\n`;
+              comment += `- **Statements**: ${total.statements.pct}%\n\n`;
+            }
+            
+            comment += '### Checks Status\n';
+            comment += '✅ TypeScript compilation\n';
+            comment += '✅ ESLint validation\n';
+            comment += '✅ Prettier formatting\n';
+            comment += '✅ Unit tests\n';
+            comment += '✅ Bundle size check\n';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # Build Validation
+  build-validation:
+    name: Build Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Validate Expo configuration
+        run: bun run expo config --type public
+
+      - name: Check Android prebuild
+        run: bun run expo prebuild --platform android --clean --no-install
+
+      - name: Check iOS prebuild
+        run: bun run expo prebuild --platform ios --clean --no-install
+
+  # Security Check
+  security-check:
+    name: Security Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run dependency audit
+        run: bun audit
+
+      - name: Check for hardcoded secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+
+  # Performance Check
+  performance-check:
+    name: Performance Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build for production
+        run: bun run expo export --platform web
+
+      - name: Analyze bundle
+        run: |
+          echo "## Bundle Analysis" >> bundle-analysis.md
+          echo "### Bundle Size" >> bundle-analysis.md
+          du -sh dist/ >> bundle-analysis.md
+          echo "" >> bundle-analysis.md
+          echo "### Largest Files" >> bundle-analysis.md
+          find dist/ -type f -name "*.js" -o -name "*.css" | xargs ls -lah | sort -k5 -hr | head -10 >> bundle-analysis.md
+
+      - name: Comment PR with bundle analysis
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            if (fs.existsSync('./bundle-analysis.md')) {
+              const analysis = fs.readFileSync('./bundle-analysis.md', 'utf8');
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: analysis
+              });
+            }

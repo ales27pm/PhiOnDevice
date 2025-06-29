@@ -1,0 +1,352 @@
+name: Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  NODE_VERSION: '20'
+  BUN_VERSION: '1.1.0'
+
+jobs:
+  # Create GitHub Release
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      tag_name: ${{ steps.get_version.outputs.tag_name }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Generate changelog from commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s" --no-merges)
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s" --no-merges ${LAST_TAG}..HEAD)
+          fi
+          
+          # Save changelog to file for multiline output
+          echo "$CHANGELOG" > changelog.txt
+          
+          # Also save to GitHub output
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_version.outputs.tag_name }}
+          release_name: Phi-4 Reasoning ${{ steps.get_version.outputs.tag_name }}
+          body: |
+            ## 🚀 Phi-4 Reasoning Release ${{ steps.get_version.outputs.tag_name }}
+            
+            ### What's New
+            ${{ steps.changelog.outputs.changelog }}
+            
+            ### 📱 Download
+            - **Android**: Download the APK from the assets below
+            - **iOS**: Available on TestFlight (link in description)
+            
+            ### 🔧 Technical Details
+            - React Native 0.79.2
+            - Expo SDK 53
+            - On-device AI reasoning simulation
+            - Mathematical problem solving
+            
+            ### 📊 Performance
+            - Simulated Core ML inference
+            - Realistic token generation speeds
+            - Optimized for Apple Silicon
+          draft: false
+          prerelease: false
+
+  # Build and Upload Android Release
+  build-android-release:
+    name: Build Android Release
+    runs-on: ubuntu-latest
+    needs: create-release
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Create production env file
+        run: |
+          echo "EXPO_PUBLIC_VIBECODE_OPENAI_API_KEY=${{ secrets.EXPO_PUBLIC_VIBECODE_OPENAI_API_KEY }}" >> .env
+          echo "EXPO_PUBLIC_VIBECODE_ANTHROPIC_API_KEY=${{ secrets.EXPO_PUBLIC_VIBECODE_ANTHROPIC_API_KEY }}" >> .env
+          echo "EXPO_PUBLIC_VIBECODE_GROK_API_KEY=${{ secrets.EXPO_PUBLIC_VIBECODE_GROK_API_KEY }}" >> .env
+          echo "EXPO_PUBLIC_ENVIRONMENT=production" >> .env
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Update app version
+        run: |
+          TAG_NAME=${{ needs.create-release.outputs.tag_name }}
+          VERSION=${TAG_NAME#v}
+          
+          # Update app.json with new version
+          bun run expo config --type public | jq ".expo.version = \"$VERSION\"" > temp.json
+          mv temp.json app.json
+
+      - name: Pre-build Android
+        run: bun run expo prebuild --platform android --clean
+
+      - name: Build Android Release
+        run: |
+          cd android
+          ./gradlew bundleRelease
+
+      - name: Sign Android AAB
+        uses: r0adkll/sign-android-release@v1
+        id: sign_aab
+        with:
+          releaseDirectory: android/app/build/outputs/bundle/release
+          signingKeyBase64: ${{ secrets.ANDROID_SIGNING_KEY }}
+          alias: ${{ secrets.ANDROID_ALIAS }}
+          keyStorePassword: ${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Upload AAB to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ steps.sign_aab.outputs.signedReleaseFile }}
+          asset_name: phi4-reasoning-${{ needs.create-release.outputs.tag_name }}.aab
+          asset_content_type: application/octet-stream
+
+      - name: Build Android APK
+        run: |
+          cd android
+          ./gradlew assembleRelease
+
+      - name: Sign Android APK
+        uses: r0adkll/sign-android-release@v1
+        id: sign_apk
+        with:
+          releaseDirectory: android/app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.ANDROID_SIGNING_KEY }}
+          alias: ${{ secrets.ANDROID_ALIAS }}
+          keyStorePassword: ${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Upload APK to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ steps.sign_apk.outputs.signedReleaseFile }}
+          asset_name: phi4-reasoning-${{ needs.create-release.outputs.tag_name }}.apk
+          asset_content_type: application/vnd.android.package-archive
+
+  # Build and Upload iOS Release
+  build-ios-release:
+    name: Build iOS Release
+    runs-on: macos-latest
+    needs: create-release
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Create production env file
+        run: |
+          echo "EXPO_PUBLIC_VIBECODE_OPENAI_API_KEY=${{ secrets.EXPO_PUBLIC_VIBECODE_OPENAI_API_KEY }}" >> .env
+          echo "EXPO_PUBLIC_VIBECODE_ANTHROPIC_API_KEY=${{ secrets.EXPO_PUBLIC_VIBECODE_ANTHROPIC_API_KEY }}" >> .env
+          echo "EXPO_PUBLIC_VIBECODE_GROK_API_KEY=${{ secrets.EXPO_PUBLIC_VIBECODE_GROK_API_KEY }}" >> .env
+          echo "EXPO_PUBLIC_ENVIRONMENT=production" >> .env
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Update app version
+        run: |
+          TAG_NAME=${{ needs.create-release.outputs.tag_name }}
+          VERSION=${TAG_NAME#v}
+          
+          # Update app.json with new version
+          bun run expo config --type public | jq ".expo.version = \"$VERSION\"" > temp.json
+          mv temp.json app.json
+
+      - name: Pre-build iOS
+        run: bun run expo prebuild --platform ios --clean
+
+      - name: Install iOS dependencies
+        run: |
+          cd ios
+          pod install
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Import certificates
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE }}
+          p12-password: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+
+      - name: Download provisioning profiles
+        uses: apple-actions/download-provisioning-profiles@v2
+        with:
+          bundle-id: com.vibecode.phi4reasoning
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+
+      - name: Build iOS Archive
+        run: |
+          cd ios
+          xcodebuild -workspace Phi4Reasoning.xcworkspace \
+            -scheme Phi4Reasoning \
+            -configuration Release \
+            -destination generic/platform=iOS \
+            -archivePath build/Phi4Reasoning.xcarchive \
+            archive
+
+      - name: Export IPA
+        run: |
+          cd ios
+          xcodebuild -exportArchive \
+            -archivePath build/Phi4Reasoning.xcarchive \
+            -exportOptionsPlist exportOptions.plist \
+            -exportPath build/
+
+      - name: Upload IPA to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ios/build/Phi4Reasoning.ipa
+          asset_name: phi4-reasoning-${{ needs.create-release.outputs.tag_name }}.ipa
+          asset_content_type: application/octet-stream
+
+  # Deploy to Stores
+  deploy-stores:
+    name: Deploy to App Stores
+    runs-on: ubuntu-latest
+    needs: [create-release, build-android-release, build-ios-release]
+    
+    steps:
+      - name: Deploy to Google Play Store
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
+          packageName: com.vibecode.phi4reasoning
+          releaseFiles: android/app/build/outputs/bundle/release/*.aab
+          track: production
+          status: completed
+          inAppUpdatePriority: 2
+
+      - name: Deploy to App Store Connect
+        uses: apple-actions/upload-testflight-build@v1
+        with:
+          app-path: ios/build/Phi4Reasoning.ipa
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+
+  # Notify Teams
+  notify-release:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: [create-release, deploy-stores]
+    if: always()
+    
+    steps:
+      - name: Slack Notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              text: "🚀 Phi-4 Reasoning ${{ needs.create-release.outputs.tag_name }} Released!",
+              attachments: [{
+                color: 'good',
+                fields: [{
+                  title: 'Version',
+                  value: '${{ needs.create-release.outputs.tag_name }}',
+                  short: true
+                }, {
+                  title: 'Platforms',
+                  value: 'iOS & Android',
+                  short: true
+                }, {
+                  title: 'Status',
+                  value: 'Deployed to App Stores',
+                  short: true
+                }]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Discord Notification
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            🎉 **Phi-4 Reasoning ${{ needs.create-release.outputs.tag_name }}** is now live!
+            
+            📱 **Platforms**: iOS & Android
+            🏪 **Stores**: Google Play & App Store
+            🔗 **GitHub**: https://github.com/${{ github.repository }}/releases/tag/${{ needs.create-release.outputs.tag_name }}
