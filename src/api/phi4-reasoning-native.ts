@@ -2,12 +2,17 @@ import { ReasoningStep } from '../state/reasoningStore';
 import { 
   nativePhi4LLM, 
   isNativeLLMSupported, 
-  getModelBundlePath,
-  type StreamingGenerationCallbacks 
+  getModelBundlePath
 } from './nativePhi4LLM';
 import { generateEnhancedReasoning } from './enhanced-phi4-reasoning';
 import { Analytics } from '../utils/analytics';
 import { ErrorHandler, ReasoningError } from '../utils/errorHandler';
+
+interface StreamingGenerationCallbacks {
+  onToken: (token: string) => void;
+  onComplete: () => void;
+  onError: (error: Error) => void;
+}
 
 export interface NativeReasoningConfig {
   useNativeLLM: boolean;
@@ -114,7 +119,7 @@ class Phi4NativeReasoningEngine {
     // Try native execution first on iOS
     if (isNativeLLMSupported && fullConfig.useNativeLLM) {
       try {
-        return await this.executeNativeReasoning(problem, onStep, onToken, fullConfig);
+        return await this.executeNativeReasoning(problem, onStep, fullConfig, onToken);
       } catch (error) {
         console.warn('⚠️ Native reasoning failed, falling back to enhanced mock:', error);
         
@@ -134,8 +139,8 @@ class Phi4NativeReasoningEngine {
   private async executeNativeReasoning(
     problem: string,
     onStep: (step: ReasoningStep) => void,
-    onToken?: (token: string) => void,
-    config: NativeReasoningConfig
+    config: NativeReasoningConfig,
+    onToken?: (token: string) => void
   ): Promise<NativeReasoningResult> {
     
     // Ensure model is loaded
@@ -434,9 +439,7 @@ export async function generateNativeReasoning(
   return nativeReasoningEngine.generateReasoning(problem, onStep, onToken, config);
 }
 
-// Export types and utilities
+// Export utilities
 export {
-  isNativeLLMSupported,
-  type NativeReasoningConfig,
-  type NativeReasoningResult
+  isNativeLLMSupported
 };

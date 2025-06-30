@@ -1,11 +1,11 @@
 import { NativeEventEmitter, NativeModules, Platform } from 'react-native';
-import NativePhi4LLM from '../specs/NativePhi4LLM';
+import NativePhi4LLM from '../../specs/NativePhi4LLM';
 import type {
   Phi4GenerationConfig,
   Phi4GenerationResult,
   Phi4ModelInfo,
   Phi4PerformanceMetrics,
-} from '../specs/NativePhi4LLM';
+} from '../../specs/NativePhi4LLM';
 import { Analytics } from '../utils/analytics';
 import { ErrorHandler, ReasoningError } from '../utils/errorHandler';
 
@@ -474,5 +474,4 @@ export type {
   Phi4GenerationResult,
   Phi4ModelInfo,
   Phi4PerformanceMetrics,
-  StreamingGenerationCallbacks,
 };
