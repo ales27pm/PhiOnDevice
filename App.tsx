@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { AppNavigator } from './src/navigation/AppNavigator';
-import { OnboardingFlow } from './src/components/OnboardingFlow';
-import { useOnboardingStore } from './src/state/onboardingStore';
-import { Analytics } from './src/utils/analytics';
-import { AccessibilityHelper } from './src/utils/accessibility';
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { AppNavigator } from "./src/navigation/AppNavigator";
+import { OnboardingFlow } from "./src/components/OnboardingFlow";
+import { useOnboardingStore } from "./src/state/onboardingStore";
+import { Analytics } from "./src/utils/analytics";
+import { AccessibilityHelper } from "./src/utils/accessibility";
 
 /*
 IMPORTANT NOTICE: DO NOT REMOVE
@@ -42,16 +42,16 @@ export default function App() {
     try {
       // Track app launch
       Analytics.trackAppLaunch();
-      
+
       // Initialize accessibility
       await AccessibilityHelper.testAccessibility();
-      
+
       // Check if onboarding should be shown
       setShowOnboarding(shouldShowOnboarding());
-      
+
       setIsAppReady(true);
     } catch (error) {
-      console.error('Failed to initialize app:', error);
+      console.error("Failed to initialize app:", error);
       setIsAppReady(true); // Continue anyway
     }
   };
@@ -59,7 +59,7 @@ export default function App() {
   const handleOnboardingComplete = () => {
     completeOnboarding();
     setShowOnboarding(false);
-    AccessibilityHelper.announceForAccessibility('Welcome to Phi-4 Reasoning. Ready to solve mathematical problems.');
+    AccessibilityHelper.announceForAccessibility("Welcome to Phi-4 Reasoning. Ready to solve mathematical problems.");
   };
 
   const handleOnboardingSkip = () => {
@@ -74,11 +74,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        {showOnboarding ? (
-          <OnboardingFlow onComplete={handleOnboardingComplete} />
-        ) : (
-          <AppNavigator />
-        )}
+        {showOnboarding ? <OnboardingFlow onComplete={handleOnboardingComplete} /> : <AppNavigator />}
         <StatusBar style="auto" />
       </SafeAreaProvider>
     </GestureHandlerRootView>

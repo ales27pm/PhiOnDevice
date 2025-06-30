@@ -34,7 +34,7 @@ class AnalyticsManager {
 
   constructor() {
     this.sessionId = this.generateSessionId();
-    this.isEnabled = process.env.EXPO_PUBLIC_ENABLE_ANALYTICS === 'true';
+    this.isEnabled = process.env.EXPO_PUBLIC_ENABLE_ANALYTICS === "true";
   }
 
   private generateSessionId(): string {
@@ -48,12 +48,12 @@ class AnalyticsManager {
       name: eventName,
       properties: {
         ...properties,
-        platform: 'react-native',
-        app_version: process.env.EXPO_PUBLIC_APP_VERSION || '1.0.0',
-        environment: process.env.EXPO_PUBLIC_ENVIRONMENT || 'development'
+        platform: "react-native",
+        app_version: process.env.EXPO_PUBLIC_APP_VERSION || "1.0.0",
+        environment: process.env.EXPO_PUBLIC_ENVIRONMENT || "development",
       },
       timestamp: Date.now(),
-      sessionId: this.sessionId
+      sessionId: this.sessionId,
     };
 
     this.events.push(event);
@@ -64,7 +64,7 @@ class AnalyticsManager {
     }
 
     if (__DEV__) {
-      console.log('📊 Analytics:', eventName, properties);
+      console.log("📊 Analytics:", eventName, properties);
     }
 
     // In production, send to analytics service
@@ -73,118 +73,118 @@ class AnalyticsManager {
 
   // App lifecycle events
   trackAppLaunch(): void {
-    this.track('app_launched', {
+    this.track("app_launched", {
       session_id: this.sessionId,
-      launch_time: new Date().toISOString()
+      launch_time: new Date().toISOString(),
     });
   }
 
   trackAppBackground(): void {
-    this.track('app_backgrounded', {
-      session_duration: this.getSessionDuration()
+    this.track("app_backgrounded", {
+      session_duration: this.getSessionDuration(),
     });
   }
 
   trackAppForeground(): void {
-    this.track('app_foregrounded');
+    this.track("app_foregrounded");
   }
 
   // Reasoning-specific events
   trackReasoningStarted(problem: string, problemType?: string): void {
-    this.track('reasoning_started', {
+    this.track("reasoning_started", {
       problem_length: problem.length,
-      problem_type: problemType || 'unknown',
-      problem_hash: this.hashString(problem) // Don't store actual problem for privacy
+      problem_type: problemType || "unknown",
+      problem_hash: this.hashString(problem), // Don't store actual problem for privacy
     });
   }
 
   trackReasoningCompleted(metrics: ReasoningMetrics): void {
-    this.track('reasoning_completed', {
+    this.track("reasoning_completed", {
       ...metrics,
       performance_tier: this.getPerformanceTier(metrics.tokensPerSecond),
-      complexity_score: this.calculateComplexityScore(metrics)
+      complexity_score: this.calculateComplexityScore(metrics),
     });
   }
 
   trackReasoningFailed(problem: string, errorCode: string, errorMessage?: string): void {
-    this.track('reasoning_failed', {
+    this.track("reasoning_failed", {
       problem_length: problem.length,
       error_code: errorCode,
       error_message: errorMessage,
-      problem_hash: this.hashString(problem)
+      problem_hash: this.hashString(problem),
     });
   }
 
   // User interaction events
   trackUserInteraction(interaction: UserInteraction): void {
-    this.track('user_interaction', {
+    this.track("user_interaction", {
       action: interaction.action,
       component: interaction.component,
       value: interaction.value,
-      ...interaction.metadata
+      ...interaction.metadata,
     });
   }
 
   trackExampleProblemSelected(example: any): void {
-    this.track('example_problem_selected', {
+    this.track("example_problem_selected", {
       category: example.category,
       difficulty: example.difficulty,
-      problem_length: example.problem.length
+      problem_length: example.problem.length,
     });
   }
 
   trackSessionLoaded(sessionId: string): void {
-    this.track('session_loaded', {
-      loaded_session_id: sessionId
+    this.track("session_loaded", {
+      loaded_session_id: sessionId,
     });
   }
 
   trackSessionDeleted(sessionId: string): void {
-    this.track('session_deleted', {
-      deleted_session_id: sessionId
+    this.track("session_deleted", {
+      deleted_session_id: sessionId,
     });
   }
 
   // Settings and configuration events
   trackSettingChanged(setting: string, oldValue: any, newValue: any): void {
-    this.track('setting_changed', {
+    this.track("setting_changed", {
       setting_name: setting,
       old_value: oldValue,
-      new_value: newValue
+      new_value: newValue,
     });
   }
 
   trackPerformanceMetric(metric: string, value: number, context?: string): void {
-    this.track('performance_metric', {
+    this.track("performance_metric", {
       metric_name: metric,
       metric_value: value,
-      context: context
+      context: context,
     });
   }
 
   // Error tracking
   trackError(error: Error, context?: string): void {
-    this.track('error_occurred', {
+    this.track("error_occurred", {
       error_name: error.name,
       error_message: error.message,
       error_stack: error.stack?.substring(0, 500), // Limit stack trace length
-      context: context
+      context: context,
     });
   }
 
   // Feature usage tracking
   trackFeatureUsage(feature: string, metadata?: Record<string, any>): void {
-    this.track('feature_used', {
+    this.track("feature_used", {
       feature_name: feature,
-      ...metadata
+      ...metadata,
     });
   }
 
   // Helper methods
   private getPerformanceTier(tokensPerSecond: number): string {
-    if (tokensPerSecond >= 35) return 'high';
-    if (tokensPerSecond >= 25) return 'medium';
-    return 'low';
+    if (tokensPerSecond >= 35) return "high";
+    if (tokensPerSecond >= 25) return "medium";
+    return "low";
   }
 
   private calculateComplexityScore(metrics: ReasoningMetrics): number {
@@ -200,14 +200,14 @@ class AnalyticsManager {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
     return Math.abs(hash).toString();
   }
 
   private getSessionDuration(): number {
-    const sessionStart = parseInt(this.sessionId.split('_')[1]);
+    const sessionStart = parseInt(this.sessionId.split("_")[1]);
     return Date.now() - sessionStart;
   }
 
@@ -217,7 +217,7 @@ class AnalyticsManager {
     // - Firebase Analytics: analytics().logEvent(event.name, event.properties)
     // - Mixpanel: mixpanel.track(event.name, event.properties)
     // - Custom API: fetch('/analytics', { method: 'POST', body: JSON.stringify(event) })
-    
+
     if (__DEV__) {
       // In development, just log to console
       return;
@@ -231,7 +231,7 @@ class AnalyticsManager {
       //   body: JSON.stringify(event)
       // });
     } catch (error) {
-      console.warn('Failed to send analytics event:', error);
+      console.warn("Failed to send analytics event:", error);
     }
   }
 
@@ -242,7 +242,7 @@ class AnalyticsManager {
 
   getEventsSummary(): Record<string, number> {
     const summary: Record<string, number> = {};
-    this.events.forEach(event => {
+    this.events.forEach((event) => {
       summary[event.name] = (summary[event.name] || 0) + 1;
     });
     return summary;
@@ -255,7 +255,7 @@ class AnalyticsManager {
   // User consent and privacy
   setAnalyticsEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
-    this.track('analytics_consent_changed', { enabled });
+    this.track("analytics_consent_changed", { enabled });
   }
 
   isAnalyticsEnabled(): boolean {
@@ -266,13 +266,16 @@ class AnalyticsManager {
 // Singleton instance
 export const Analytics = new AnalyticsManager();
 
-import React from 'react';
+import React from "react";
 
 // React hook for analytics
 export function useAnalytics() {
-  const trackInteraction = React.useCallback((action: string, component: string, value?: string | number, metadata?: Record<string, any>) => {
-    Analytics.trackUserInteraction({ action, component, value, metadata });
-  }, []);
+  const trackInteraction = React.useCallback(
+    (action: string, component: string, value?: string | number, metadata?: Record<string, any>) => {
+      Analytics.trackUserInteraction({ action, component, value, metadata });
+    },
+    [],
+  );
 
   const trackFeature = React.useCallback((feature: string, metadata?: Record<string, any>) => {
     Analytics.trackFeatureUsage(feature, metadata);
@@ -286,28 +289,28 @@ export function useAnalytics() {
     track: Analytics.track.bind(Analytics),
     trackInteraction,
     trackFeature,
-    trackError
+    trackError,
   };
 }
 
 // Analytics event names (constants for consistency)
 export const ANALYTICS_EVENTS = {
-  APP_LAUNCHED: 'app_launched',
-  APP_BACKGROUNDED: 'app_backgrounded',
-  APP_FOREGROUNDED: 'app_foregrounded',
-  
-  REASONING_STARTED: 'reasoning_started',
-  REASONING_COMPLETED: 'reasoning_completed',
-  REASONING_FAILED: 'reasoning_failed',
-  
-  EXAMPLE_SELECTED: 'example_problem_selected',
-  SESSION_LOADED: 'session_loaded',
-  SESSION_DELETED: 'session_deleted',
-  
-  SETTING_CHANGED: 'setting_changed',
-  FEATURE_USED: 'feature_used',
-  ERROR_OCCURRED: 'error_occurred',
-  
-  USER_INTERACTION: 'user_interaction',
-  PERFORMANCE_METRIC: 'performance_metric'
+  APP_LAUNCHED: "app_launched",
+  APP_BACKGROUNDED: "app_backgrounded",
+  APP_FOREGROUNDED: "app_foregrounded",
+
+  REASONING_STARTED: "reasoning_started",
+  REASONING_COMPLETED: "reasoning_completed",
+  REASONING_FAILED: "reasoning_failed",
+
+  EXAMPLE_SELECTED: "example_problem_selected",
+  SESSION_LOADED: "session_loaded",
+  SESSION_DELETED: "session_deleted",
+
+  SETTING_CHANGED: "setting_changed",
+  FEATURE_USED: "feature_used",
+  ERROR_OCCURRED: "error_occurred",
+
+  USER_INTERACTION: "user_interaction",
+  PERFORMANCE_METRIC: "performance_metric",
 } as const;

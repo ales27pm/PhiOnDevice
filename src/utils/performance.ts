@@ -1,7 +1,7 @@
 // Performance optimization utilities for Phi-4 Reasoning app
 
-import { InteractionManager, Platform } from 'react-native';
-import { Analytics } from './analytics';
+import { InteractionManager, Platform } from "react-native";
+import { Analytics } from "./analytics";
 
 export interface PerformanceMetrics {
   startTime: number;
@@ -20,11 +20,11 @@ class PerformanceMonitor {
     const metric: PerformanceMetrics = {
       startTime: Date.now(),
       operation: operationName,
-      metadata
+      metadata,
     };
-    
+
     this.metrics.set(operationId, metric);
-    
+
     if (__DEV__) {
       console.log(`⏱️ Started: ${operationName} (${operationId})`);
     }
@@ -42,7 +42,7 @@ class PerformanceMonitor {
 
     // Track slow operations
     if (metric.duration > 1000) {
-      Analytics.trackPerformanceMetric('slow_operation', metric.duration, metric.operation);
+      Analytics.trackPerformanceMetric("slow_operation", metric.duration, metric.operation);
     }
 
     if (__DEV__) {
@@ -51,13 +51,13 @@ class PerformanceMonitor {
 
     // Clean up
     this.metrics.delete(operationId);
-    
+
     return metric;
   }
 
   // Memory management utilities
   checkMemoryUsage(): void {
-    if (Platform.OS === 'ios') {
+    if (Platform.OS === "ios") {
       // On iOS, we can't directly access memory info from JS
       // In a real app, you'd use a native module
       return;
@@ -67,10 +67,10 @@ class PerformanceMonitor {
     if (__DEV__ && (global as any).performance?.memory) {
       const memory = (global as any).performance.memory;
       const usedMemory = memory.usedJSHeapSize;
-      
+
       if (usedMemory > this.memoryWarningThreshold) {
         console.warn(`🚨 High memory usage: ${(usedMemory / 1024 / 1024).toFixed(1)}MB`);
-        Analytics.trackPerformanceMetric('memory_warning', usedMemory, 'memory_check');
+        Analytics.trackPerformanceMetric("memory_warning", usedMemory, "memory_check");
       }
     }
   }
@@ -85,12 +85,9 @@ class PerformanceMonitor {
   }
 
   // Debounce utility for performance-sensitive operations
-  debounce<T extends (...args: any[]) => any>(
-    func: T,
-    delay: number
-  ): (...args: Parameters<T>) => void {
+  debounce<T extends (...args: any[]) => any>(func: T, delay: number): (...args: Parameters<T>) => void {
     let timeoutId: NodeJS.Timeout;
-    
+
     return (...args: Parameters<T>) => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => func(...args), delay);
@@ -98,12 +95,9 @@ class PerformanceMonitor {
   }
 
   // Throttle utility for frequent operations
-  throttle<T extends (...args: any[]) => any>(
-    func: T,
-    delay: number
-  ): (...args: Parameters<T>) => void {
+  throttle<T extends (...args: any[]) => any>(func: T, delay: number): (...args: Parameters<T>) => void {
     let isThrottled = false;
-    
+
     return (...args: Parameters<T>) => {
       if (!isThrottled) {
         func(...args);
@@ -116,32 +110,29 @@ class PerformanceMonitor {
   }
 
   // Batch operations for better performance
-  async batchOperations<T>(
-    operations: Array<() => Promise<T>>,
-    batchSize: number = 5
-  ): Promise<T[]> {
+  async batchOperations<T>(operations: Array<() => Promise<T>>, batchSize: number = 5): Promise<T[]> {
     const results: T[] = [];
-    
+
     for (let i = 0; i < operations.length; i += batchSize) {
       const batch = operations.slice(i, i + batchSize);
-      const batchResults = await Promise.all(batch.map(op => op()));
+      const batchResults = await Promise.all(batch.map((op) => op()));
       results.push(...batchResults);
-      
+
       // Allow other operations to run between batches
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
     }
-    
+
     return results;
   }
 
   // Image optimization utilities
   getOptimalImageSize(containerWidth: number, containerHeight: number): { width: number; height: number } {
     // Get device pixel ratio for high-DPI displays
-    const pixelRatio = require('react-native').PixelRatio.get();
-    
+    const pixelRatio = require("react-native").PixelRatio.get();
+
     return {
       width: Math.ceil(containerWidth * pixelRatio),
-      height: Math.ceil(containerHeight * pixelRatio)
+      height: Math.ceil(containerHeight * pixelRatio),
     };
   }
 
@@ -150,7 +141,7 @@ class PerformanceMonitor {
     return {
       duration: isReducedMotion ? 0 : 250,
       useNativeDriver: true,
-      isInteraction: false // Don't delay other interactions
+      isInteraction: false, // Don't delay other interactions
     };
   }
 
@@ -168,9 +159,9 @@ class PerformanceMonitor {
   // Startup performance monitoring
   startMonitoring(): void {
     if (this.isMonitoring) return;
-    
+
     this.isMonitoring = true;
-    
+
     // Monitor memory periodically
     const memoryCheck = setInterval(() => {
       this.checkMemoryUsage();
@@ -187,12 +178,12 @@ class PerformanceMonitor {
   measureBundleLoad(bundleName: string, loadFunction: () => Promise<any>): Promise<any> {
     const operationId = `bundle_load_${bundleName}`;
     this.startOperation(operationId, `Bundle Load: ${bundleName}`);
-    
+
     return loadFunction()
       .then((result) => {
         const metric = this.endOperation(operationId);
         if (metric && metric.duration) {
-          Analytics.trackPerformanceMetric('bundle_load_time', metric.duration, bundleName);
+          Analytics.trackPerformanceMetric("bundle_load_time", metric.duration, bundleName);
         }
         return result;
       })
@@ -206,7 +197,7 @@ class PerformanceMonitor {
   shouldComponentUpdate(
     prevProps: Record<string, any>,
     nextProps: Record<string, any>,
-    shallowCompare: boolean = true
+    shallowCompare: boolean = true,
   ): boolean {
     if (shallowCompare) {
       return !this.shallowEqual(prevProps, nextProps);
@@ -238,7 +229,7 @@ class PerformanceMonitor {
     platform: string;
   } {
     let memoryUsage: number | undefined;
-    
+
     if (__DEV__ && (global as any).performance?.memory) {
       memoryUsage = (global as any).performance.memory.usedJSHeapSize;
     }
@@ -246,7 +237,7 @@ class PerformanceMonitor {
     return {
       activeOperations: this.metrics.size,
       memoryUsage,
-      platform: Platform.OS
+      platform: Platform.OS,
     };
   }
 }
@@ -254,13 +245,16 @@ class PerformanceMonitor {
 // Singleton instance
 export const Performance = new PerformanceMonitor();
 
+import React from "react";
+
 // React hooks for performance monitoring
 export function usePerformanceMonitor() {
-  const React = require('react');
-  
-  const startOperation = React.useCallback((operationId: string, operationName: string, metadata?: Record<string, any>) => {
-    Performance.startOperation(operationId, operationName, metadata);
-  }, []);
+  const startOperation = React.useCallback(
+    (operationId: string, operationName: string, metadata?: Record<string, any>) => {
+      Performance.startOperation(operationId, operationName, metadata);
+    },
+    [],
+  );
 
   const endOperation = React.useCallback((operationId: string) => {
     return Performance.endOperation(operationId);
@@ -274,19 +268,15 @@ export function usePerformanceMonitor() {
 }
 
 // Higher-order component for performance monitoring
-export function withPerformanceMonitoring<P extends object>(
-  Component: React.ComponentType<P>,
-  componentName: string
-) {
-  const React = require('react');
-  
+export function withPerformanceMonitoring<P extends object>(Component: React.ComponentType<P>, componentName: string) {
   return React.memo((props: P) => {
     const mountTime = React.useRef<number>(Date.now());
-    
+
     React.useEffect(() => {
       const renderTime = Date.now() - mountTime.current;
-      if (renderTime > 100) { // Log slow renders
-        Analytics.trackPerformanceMetric('slow_render', renderTime, componentName);
+      if (renderTime > 100) {
+        // Log slow renders
+        Analytics.trackPerformanceMetric("slow_render", renderTime, componentName);
       }
     }, []);
 
@@ -299,33 +289,33 @@ export const PerformanceUtils = {
   // Memoization helper
   memoize: <T extends (...args: any[]) => any>(fn: T): T => {
     const cache = new Map();
-    
+
     return ((...args: Parameters<T>): ReturnType<T> => {
       const key = JSON.stringify(args);
-      
+
       if (cache.has(key)) {
         return cache.get(key);
       }
-      
+
       const result = fn(...args);
       cache.set(key, result);
-      
+
       // Prevent memory leaks by limiting cache size
       if (cache.size > 100) {
         const firstKey = cache.keys().next().value;
         cache.delete(firstKey);
       }
-      
+
       return result;
     }) as T;
   },
 
   // Deep clone optimization
   deepClone: <T>(obj: T): T => {
-    if (obj === null || typeof obj !== 'object') return obj;
+    if (obj === null || typeof obj !== "object") return obj;
     if (obj instanceof Date) return new Date(obj.getTime()) as T;
-    if (obj instanceof Array) return obj.map(item => PerformanceUtils.deepClone(item)) as T;
-    if (typeof obj === 'object') {
+    if (obj instanceof Array) return obj.map((item) => PerformanceUtils.deepClone(item)) as T;
+    if (typeof obj === "object") {
       const clonedObj = {} as T;
       for (const key in obj) {
         if (obj.hasOwnProperty(key)) {
@@ -348,10 +338,10 @@ export const PerformanceUtils = {
   },
 
   // String operations optimization
-  truncateString: (str: string, maxLength: number, suffix: string = '...'): string => {
+  truncateString: (str: string, maxLength: number, suffix: string = "..."): string => {
     if (str.length <= maxLength) return str;
     return str.substring(0, maxLength - suffix.length) + suffix;
-  }
+  },
 };
 
 // Start performance monitoring on module load

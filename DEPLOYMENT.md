@@ -16,6 +16,7 @@ This guide covers the complete CI/CD pipeline and deployment process for the Phi
 ## 🔧 Prerequisites
 
 ### Development Tools
+
 - **Node.js 20+** and **Bun 1.1.0+**
 - **Expo CLI** (`bun install -g @expo/cli`)
 - **Git** with proper SSH/HTTPS access
@@ -24,18 +25,21 @@ This guide covers the complete CI/CD pipeline and deployment process for the Phi
 ### Platform-Specific Requirements
 
 #### iOS Development (macOS only)
+
 - **Xcode 15+** with latest command line tools
 - **CocoaPods** (`sudo gem install cocoapods`)
 - **iOS Developer Account** ($99/year)
 - **Apple Certificates & Provisioning Profiles**
 
 #### Android Development
+
 - **Android Studio** with SDK 34+
 - **Java JDK 17**
 - **Google Play Console Account** ($25 one-time)
 - **Android Keystore** for signing
 
 ### Third-Party Services
+
 - **GitHub** repository with Actions enabled
 - **Expo Account** for OTA updates
 - **Slack/Discord** for notifications (optional)
@@ -62,7 +66,7 @@ Create environment files for each stage:
 # Development
 cp .env.example .env.development
 
-# Staging  
+# Staging
 cp .env.example .env.staging
 
 # Production
@@ -98,14 +102,16 @@ EXPO_PUBLIC_QUANTIZATION=INT4
 Add these secrets to your GitHub repository (`Settings > Secrets and variables > Actions`):
 
 #### General Secrets
+
 ```
 EXPO_TOKEN=xxx                           # Expo authentication token
 EXPO_PUBLIC_VIBECODE_OPENAI_API_KEY=xxx  # OpenAI API key
-EXPO_PUBLIC_VIBECODE_ANTHROPIC_API_KEY=xxx # Anthropic API key  
+EXPO_PUBLIC_VIBECODE_ANTHROPIC_API_KEY=xxx # Anthropic API key
 EXPO_PUBLIC_VIBECODE_GROK_API_KEY=xxx    # Grok API key
 ```
 
 #### iOS Secrets
+
 ```
 IOS_DISTRIBUTION_CERTIFICATE=xxx         # Base64 encoded P12 certificate
 IOS_CERTIFICATE_PASSWORD=xxx             # P12 certificate password
@@ -115,6 +121,7 @@ APPSTORE_PRIVATE_KEY=xxx                 # App Store Connect API private key
 ```
 
 #### Android Secrets
+
 ```
 ANDROID_SIGNING_KEY=xxx                  # Base64 encoded keystore
 ANDROID_ALIAS=xxx                        # Keystore alias
@@ -124,6 +131,7 @@ GOOGLE_PLAY_SERVICE_ACCOUNT=xxx          # Google Play service account JSON
 ```
 
 #### Notification Secrets (Optional)
+
 ```
 SLACK_WEBHOOK=xxx                        # Slack webhook URL
 DISCORD_WEBHOOK=xxx                      # Discord webhook URL
@@ -156,27 +164,29 @@ D --> H[Upload Artifacts]
 
 ### Trigger Events
 
-| Workflow | Triggers | Purpose |
-|----------|----------|---------|
-| CI/CD | Push to `main`/`develop`, Releases | Full build and deployment |
-| PR Checks | Pull requests | Code quality validation |
-| Release | Git tags (`v*`) | Automated store deployment |
+| Workflow  | Triggers                           | Purpose                    |
+| --------- | ---------------------------------- | -------------------------- |
+| CI/CD     | Push to `main`/`develop`, Releases | Full build and deployment  |
+| PR Checks | Pull requests                      | Code quality validation    |
+| Release   | Git tags (`v*`)                    | Automated store deployment |
 
 ## 🤖 GitHub Actions Workflows
 
 ### Main CI/CD Pipeline (`ci.yml`)
 
 #### Jobs Overview
+
 1. **quality-check** - TypeScript, ESLint, Prettier, Tests
 2. **security-audit** - Dependency audit, Snyk scan
 3. **build-android** - Android APK/AAB creation
-4. **build-ios** - iOS IPA creation  
+4. **build-ios** - iOS IPA creation
 5. **deploy-expo** - Expo OTA updates
 6. **deploy-android** - Google Play deployment
 7. **deploy-ios** - App Store deployment
 8. **notify** - Team notifications
 
 #### Build Matrix
+
 - **Environments**: development, staging, production
 - **Platforms**: Android, iOS
 - **Build Types**: Debug, Release
@@ -184,6 +194,7 @@ D --> H[Upload Artifacts]
 ### Pull Request Workflow (`pull-request.yml`)
 
 #### Validation Steps
+
 - ✅ TypeScript compilation
 - ✅ ESLint linting
 - ✅ Prettier formatting
@@ -195,6 +206,7 @@ D --> H[Upload Artifacts]
 ### Release Workflow (`release.yml`)
 
 #### Automated Release Process
+
 1. **Tag Creation** - `git tag v1.2.3`
 2. **GitHub Release** - Automated changelog
 3. **Asset Building** - APK, AAB, IPA
@@ -304,16 +316,19 @@ fastlane ios release
 ## 📊 Monitoring & Analytics
 
 ### Build Monitoring
+
 - **GitHub Actions** dashboard for build status
 - **Codecov** for test coverage tracking
 - **Bundle size** tracking in PR comments
 
 ### Performance Monitoring
+
 - **Expo Analytics** for app usage
 - **Crash reporting** via Expo or third-party
 - **Performance metrics** from app stores
 
 ### Security Monitoring
+
 - **Snyk** for vulnerability scanning
 - **Dependency audit** in CI pipeline
 - **Secret scanning** with TruffleHog
@@ -323,6 +338,7 @@ fastlane ios release
 ### Common CI/CD Issues
 
 #### Build Failures
+
 ```bash
 # Clean and retry build
 bun run clean
@@ -331,11 +347,13 @@ bun install
 ```
 
 #### Certificate Issues (iOS)
+
 - Verify certificate expiration dates
 - Check provisioning profile validity
 - Ensure correct team ID and bundle ID
 
 #### Keystore Issues (Android)
+
 - Verify keystore path and passwords
 - Check alias configuration
 - Ensure consistent signing across builds
@@ -343,6 +361,7 @@ bun install
 ### Environment Issues
 
 #### Missing Environment Variables
+
 ```bash
 # Check all required vars are set
 ./scripts/setup-env.sh
@@ -352,6 +371,7 @@ gh secret list
 ```
 
 #### Permission Issues
+
 ```bash
 # Fix script permissions
 chmod +x scripts/*.sh
@@ -363,11 +383,13 @@ chmod +x .git/hooks/*
 ### Platform-Specific Issues
 
 #### iOS Build Issues
+
 - Update Xcode to latest version
 - Clear DerivedData: `rm -rf ~/Library/Developer/Xcode/DerivedData`
 - Reset CocoaPods: `cd ios && pod deintegrate && pod install`
 
 #### Android Build Issues
+
 - Clear Gradle cache: `cd android && ./gradlew clean`
 - Update Android SDK components
 - Check Java version compatibility
@@ -375,6 +397,7 @@ chmod +x .git/hooks/*
 ## 🚀 Deployment Checklist
 
 ### Pre-Release
+
 - [ ] All tests passing
 - [ ] Code reviewed and approved
 - [ ] Version number updated
@@ -383,6 +406,7 @@ chmod +x .git/hooks/*
 - [ ] Store assets prepared
 
 ### Release
+
 - [ ] Create release tag
 - [ ] Monitor build progress
 - [ ] Verify app store uploads
@@ -390,6 +414,7 @@ chmod +x .git/hooks/*
 - [ ] Update documentation
 
 ### Post-Release
+
 - [ ] Monitor crash reports
 - [ ] Check app store metrics
 - [ ] Notify stakeholders
@@ -400,6 +425,7 @@ chmod +x .git/hooks/*
 ## 📞 Support & Contact
 
 For deployment issues or questions:
+
 - Create GitHub issues for bugs
 - Check Actions logs for build failures
 - Review store console for app-specific issues

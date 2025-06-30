@@ -1,4 +1,4 @@
-import { AccessibilityInfo } from 'react-native';
+import { AccessibilityInfo } from "react-native";
 
 // Accessibility utilities for Phi-4 Reasoning app
 
@@ -6,42 +6,22 @@ export interface AccessibilityProps {
   accessible?: boolean;
   accessibilityLabel?: string;
   accessibilityHint?: string;
-  accessibilityRole?: 
-    | 'none'
-    | 'button'
-    | 'link'
-    | 'search'
-    | 'image'
-    | 'keyboardkey'
-    | 'text'
-    | 'adjustable'
-    | 'imagebutton'
-    | 'header'
-    | 'summary'
-    | 'progressbar'
-    | 'tab'
-    | 'tablist'
-    | 'menu'
-    | 'menubar'
-    | 'menuitem'
-    | 'alert'
-    | 'checkbox'
-    | 'combobox'
-    | 'grid'
-    | 'list'
-    | 'listitem'
-    | 'radio'
-    | 'radiogroup'
-    | 'scrollbar'
-    | 'spinbutton'
-    | 'switch'
-    | 'textbox'
-    | 'timer'
-    | 'toolbar';
+  accessibilityRole?:
+    | "none"
+    | "button"
+    | "link"
+    | "search"
+    | "image"
+    | "keyboardkey"
+    | "text"
+    | "adjustable"
+    | "imagebutton"
+    | "header"
+    | "summary";
   accessibilityState?: {
     disabled?: boolean;
     selected?: boolean;
-    checked?: boolean | 'mixed';
+    checked?: boolean | "mixed";
     busy?: boolean;
     expanded?: boolean;
   };
@@ -73,25 +53,25 @@ class AccessibilityManager {
       this.isReduceMotionEnabled = await AccessibilityInfo.isReduceMotionEnabled();
 
       // Listen for accessibility changes
-      AccessibilityInfo.addEventListener('screenReaderChanged', (enabled) => {
+      AccessibilityInfo.addEventListener("screenReaderChanged", (enabled) => {
         this.isScreenReaderEnabled = enabled;
-        this.announceIfEnabled('Screen reader ' + (enabled ? 'enabled' : 'disabled'));
+        this.announceIfEnabled("Screen reader " + (enabled ? "enabled" : "disabled"));
       });
 
-      AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) => {
+      AccessibilityInfo.addEventListener("reduceMotionChanged", (enabled) => {
         this.isReduceMotionEnabled = enabled;
       });
     } catch (error) {
-      console.warn('Failed to initialize accessibility features:', error);
+      console.warn("Failed to initialize accessibility features:", error);
     }
   }
 
   // Announcement methods
-  announceForAccessibility(message: string, priority: 'low' | 'high' = 'low'): void {
+  announceForAccessibility(message: string, priority: "low" | "high" = "low"): void {
     if (this.isScreenReaderEnabled) {
       AccessibilityInfo.announceForAccessibility(message);
       this.announcements.push(`[${new Date().toTimeString()}] ${message}`);
-      
+
       // Keep only last 50 announcements
       if (this.announcements.length > 50) {
         this.announcements = this.announcements.slice(-50);
@@ -118,20 +98,20 @@ class AccessibilityManager {
   getButtonProps(label: string, hint?: string, disabled = false): AccessibilityProps {
     return {
       accessible: true,
-      accessibilityRole: 'button',
+      accessibilityRole: "button",
       accessibilityLabel: label,
       accessibilityHint: hint,
-      accessibilityState: { disabled }
+      accessibilityState: { disabled },
     };
   }
 
   getTextInputProps(label: string, value?: string, hint?: string): AccessibilityProps {
     return {
       accessible: true,
-      accessibilityRole: 'textbox',
+      accessibilityRole: "text",
       accessibilityLabel: label,
       accessibilityHint: hint,
-      accessibilityValue: value ? { text: value } : undefined
+      accessibilityValue: value ? { text: value } : undefined,
     };
   }
 
@@ -139,30 +119,30 @@ class AccessibilityManager {
     const percentage = Math.round((current / max) * 100);
     return {
       accessible: true,
-      accessibilityRole: 'progressbar',
-      accessibilityLabel: label || 'Progress',
+      accessibilityRole: "adjustable",
+      accessibilityLabel: label || "Progress",
       accessibilityValue: {
         min: 0,
         max: 100,
         now: percentage,
-        text: `${percentage} percent complete`
-      }
+        text: `${percentage} percent complete`,
+      },
     };
   }
 
   getListItemProps(label: string, position: number, total: number): AccessibilityProps {
     return {
       accessible: true,
-      accessibilityRole: 'listitem',
-      accessibilityLabel: `${label}, ${position} of ${total}`
+      accessibilityRole: "text",
+      accessibilityLabel: `${label}, ${position} of ${total}`,
     };
   }
 
   getHeaderProps(level: number, text: string): AccessibilityProps {
     return {
       accessible: true,
-      accessibilityRole: 'header',
-      accessibilityLabel: `Heading level ${level}, ${text}`
+      accessibilityRole: "header",
+      accessibilityLabel: `Heading level ${level}, ${text}`,
     };
   }
 
@@ -170,29 +150,29 @@ class AccessibilityManager {
   getReasoningStepProps(step: number, total: number, description: string, content: string): AccessibilityProps {
     return {
       accessible: true,
-      accessibilityRole: 'listitem',
+      accessibilityRole: "text",
       accessibilityLabel: `Step ${step} of ${total}: ${description}`,
       accessibilityHint: content,
       accessibilityValue: {
         min: 1,
         max: total,
         now: step,
-        text: `Step ${step} of ${total}`
-      }
+        text: `Step ${step} of ${total}`,
+      },
     };
   }
 
   getProblemInputProps(hasError: boolean, errorMessage?: string): AccessibilityProps {
     return {
       accessible: true,
-      accessibilityRole: 'textbox',
-      accessibilityLabel: 'Mathematical problem input',
-      accessibilityHint: hasError 
+      accessibilityRole: "text",
+      accessibilityLabel: "Mathematical problem input",
+      accessibilityHint: hasError
         ? `Error: ${errorMessage}. Enter a valid mathematical problem to solve`
-        : 'Enter a mathematical problem such as an equation, geometry question, or word problem',
-      accessibilityState: { 
-        invalid: hasError 
-      }
+        : "Enter a mathematical problem such as an equation, geometry question, or word problem",
+      accessibilityState: {
+        disabled: hasError,
+      },
     };
   }
 
@@ -204,33 +184,33 @@ class AccessibilityManager {
 
     return {
       accessible: true,
-      accessibilityRole: 'text',
-      accessibilityLabel: 'Problem solution',
-      accessibilityHint: hint
+      accessibilityRole: "text",
+      accessibilityLabel: "Problem solution",
+      accessibilityHint: hint,
     };
   }
 
   getGenerateButtonProps(isGenerating: boolean, hasInput: boolean): AccessibilityProps {
     const disabled = isGenerating || !hasInput;
-    let label = 'Generate reasoning';
-    let hint = 'Tap to start solving the mathematical problem';
+    let label = "Generate reasoning";
+    let hint = "Tap to start solving the mathematical problem";
 
     if (isGenerating) {
-      label = 'Generating reasoning';
-      hint = 'Please wait while the AI solves your problem';
+      label = "Generating reasoning";
+      hint = "Please wait while the AI solves your problem";
     } else if (!hasInput) {
-      hint = 'Enter a problem first, then tap to generate reasoning';
+      hint = "Enter a problem first, then tap to generate reasoning";
     }
 
     return {
       accessible: true,
-      accessibilityRole: 'button',
+      accessibilityRole: "button",
       accessibilityLabel: label,
       accessibilityHint: hint,
-      accessibilityState: { 
+      accessibilityState: {
         disabled,
-        busy: isGenerating 
-      }
+        busy: isGenerating,
+      },
     };
   }
 
@@ -238,15 +218,15 @@ class AccessibilityManager {
   getTabProps(label: string, selected: boolean, index: number, total: number): AccessibilityProps {
     return {
       accessible: true,
-      accessibilityRole: 'tab',
+      accessibilityRole: "button",
       accessibilityLabel: `${label} tab, ${index + 1} of ${total}`,
-      accessibilityState: { selected }
+      accessibilityState: { selected },
     };
   }
 
   // Error and status announcements
   announceReasoningStarted(problem: string): void {
-    this.announceForAccessibility(`Started solving: ${problem.substring(0, 100)}${problem.length > 100 ? '...' : ''}`);
+    this.announceForAccessibility(`Started solving: ${problem.substring(0, 100)}${problem.length > 100 ? "..." : ""}`);
   }
 
   announceReasoningStep(step: number, total: number, description: string): void {
@@ -254,20 +234,20 @@ class AccessibilityManager {
   }
 
   announceReasoningCompleted(solution: string, duration: number): void {
-    const shortSolution = solution.substring(0, 150) + (solution.length > 150 ? '...' : '');
+    const shortSolution = solution.substring(0, 150) + (solution.length > 150 ? "..." : "");
     this.announceForAccessibility(`Solution found in ${Math.round(duration / 1000)} seconds: ${shortSolution}`);
   }
 
   announceError(errorMessage: string): void {
-    this.announceForAccessibility(`Error: ${errorMessage}`, 'high');
+    this.announceForAccessibility(`Error: ${errorMessage}`, "high");
   }
 
   announceSessionLoaded(): void {
-    this.announceForAccessibility('Previous reasoning session loaded');
+    this.announceForAccessibility("Previous reasoning session loaded");
   }
 
   announceSessionDeleted(): void {
-    this.announceForAccessibility('Reasoning session deleted');
+    this.announceForAccessibility("Reasoning session deleted");
   }
 
   // Performance considerations for accessibility
@@ -297,20 +277,20 @@ class AccessibilityManager {
     try {
       const screenReader = await AccessibilityInfo.isScreenReaderEnabled();
       const reduceMotion = await AccessibilityInfo.isReduceMotionEnabled();
-      
+
       // Test announcement
-      AccessibilityInfo.announceForAccessibility('Accessibility test');
-      
+      AccessibilityInfo.announceForAccessibility("Accessibility test");
+
       return {
         screenReader,
         reduceMotion,
-        canAnnounce: true
+        canAnnounce: true,
       };
     } catch (error) {
       return {
         screenReader: false,
         reduceMotion: false,
-        canAnnounce: false
+        canAnnounce: false,
       };
     }
   }
@@ -319,7 +299,7 @@ class AccessibilityManager {
 // Singleton instance
 export const AccessibilityHelper = new AccessibilityManager();
 
-import React from 'react';
+import React from "react";
 
 // React hook for accessibility
 export function useAccessibility() {
@@ -335,8 +315,8 @@ export function useAccessibility() {
     AccessibilityInfo.isReduceMotionEnabled().then(updateReduceMotion);
 
     // Listen for changes
-    const screenReaderSubscription = AccessibilityInfo.addEventListener('screenReaderChanged', updateScreenReader);
-    const reduceMotionSubscription = AccessibilityInfo.addEventListener('reduceMotionChanged', updateReduceMotion);
+    const screenReaderSubscription = AccessibilityInfo.addEventListener("screenReaderChanged", updateScreenReader);
+    const reduceMotionSubscription = AccessibilityInfo.addEventListener("reduceMotionChanged", updateReduceMotion);
 
     return () => {
       screenReaderSubscription?.remove();
@@ -344,7 +324,7 @@ export function useAccessibility() {
     };
   }, []);
 
-  const announce = React.useCallback((message: string, priority: 'low' | 'high' = 'low') => {
+  const announce = React.useCallback((message: string, priority: "low" | "high" = "low") => {
     AccessibilityHelper.announceForAccessibility(message, priority);
   }, []);
 
@@ -352,6 +332,6 @@ export function useAccessibility() {
     isScreenReaderEnabled,
     isReduceMotionEnabled,
     announce,
-    helper: AccessibilityHelper
+    helper: AccessibilityHelper,
   };
 }

@@ -1,6 +1,7 @@
-import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Analytics } from './analytics';
+import NetInfo, { NetInfoState } from "@react-native-community/netinfo";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { View, Text } from "react-native";
+import { Analytics } from "./analytics";
 
 export interface OfflineAction {
   id: string;
@@ -21,7 +22,7 @@ export interface ConnectionState {
 class OfflineManager {
   private isConnected = true;
   private isInternetReachable: boolean | null = null;
-  private connectionType = 'unknown';
+  private connectionType = "unknown";
   private listeners: Array<(state: ConnectionState) => void> = [];
   private offlineQueue: OfflineAction[] = [];
   private isProcessingQueue = false;
@@ -44,7 +45,7 @@ class OfflineManager {
 
   private updateConnectionState(state: NetInfoState) {
     const wasConnected = this.isConnected;
-    
+
     this.isConnected = state.isConnected ?? false;
     this.isInternetReachable = state.isInternetReachable;
     this.connectionType = state.type;
@@ -53,18 +54,18 @@ class OfflineManager {
       isConnected: this.isConnected,
       isInternetReachable: this.isInternetReachable,
       type: this.connectionType,
-      details: state.details
+      details: state.details,
     };
 
     // Notify listeners
-    this.listeners.forEach(listener => listener(connectionState));
+    this.listeners.forEach((listener) => listener(connectionState));
 
     // Track connectivity changes
     if (wasConnected !== this.isConnected) {
-      Analytics.track('connectivity_changed', {
+      Analytics.track("connectivity_changed", {
         connected: this.isConnected,
         type: this.connectionType,
-        internet_reachable: this.isInternetReachable
+        internet_reachable: this.isInternetReachable,
       });
 
       if (this.isConnected && !wasConnected) {
@@ -74,7 +75,7 @@ class OfflineManager {
     }
 
     if (__DEV__) {
-      console.log('🌐 Network state:', connectionState);
+      console.log("🌐 Network state:", connectionState);
     }
   }
 
@@ -84,12 +85,12 @@ class OfflineManager {
       isConnected: this.isConnected,
       isInternetReachable: this.isInternetReachable,
       type: this.connectionType,
-      details: null
+      details: null,
     };
   }
 
   isOnline(): boolean {
-    return this.isConnected && (this.isInternetReachable !== false);
+    return this.isConnected && this.isInternetReachable !== false;
   }
 
   isOffline(): boolean {
@@ -98,7 +99,7 @@ class OfflineManager {
 
   addConnectionListener(listener: (state: ConnectionState) => void): () => void {
     this.listeners.push(listener);
-    
+
     // Return unsubscribe function
     return () => {
       const index = this.listeners.indexOf(listener);
@@ -109,20 +110,20 @@ class OfflineManager {
   }
 
   // Offline queue management
-  async queueAction(action: Omit<OfflineAction, 'id' | 'timestamp' | 'retryCount'>): Promise<void> {
+  async queueAction(action: Omit<OfflineAction, "id" | "timestamp" | "retryCount">): Promise<void> {
     const queuedAction: OfflineAction = {
       ...action,
       id: `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: Date.now(),
-      retryCount: 0
+      retryCount: 0,
     };
 
     this.offlineQueue.push(queuedAction);
     await this.saveOfflineQueue();
 
-    Analytics.track('action_queued_offline', {
+    Analytics.track("action_queued_offline", {
       action_type: action.type,
-      queue_size: this.offlineQueue.length
+      queue_size: this.offlineQueue.length,
     });
   }
 
@@ -135,30 +136,29 @@ class OfflineManager {
 
     try {
       const actionsToProcess = [...this.offlineQueue];
-      
+
       for (let i = 0; i < actionsToProcess.length; i++) {
         const action = actionsToProcess[i];
-        
+
         try {
           await this.executeOfflineAction(action);
-          
+
           // Remove successful action from queue
-          this.offlineQueue = this.offlineQueue.filter(a => a.id !== action.id);
-          
+          this.offlineQueue = this.offlineQueue.filter((a) => a.id !== action.id);
         } catch (error) {
           // Increment retry count
-          const actionIndex = this.offlineQueue.findIndex(a => a.id === action.id);
+          const actionIndex = this.offlineQueue.findIndex((a) => a.id === action.id);
           if (actionIndex > -1) {
             this.offlineQueue[actionIndex].retryCount++;
-            
+
             // Remove if max retries exceeded
             if (this.offlineQueue[actionIndex].retryCount >= action.maxRetries) {
               this.offlineQueue.splice(actionIndex, 1);
-              
-              Analytics.track('offline_action_failed', {
+
+              Analytics.track("offline_action_failed", {
                 action_type: action.type,
                 retry_count: action.retryCount,
-                error: (error as Error).message
+                error: (error as Error).message,
               });
             }
           }
@@ -166,7 +166,6 @@ class OfflineManager {
       }
 
       await this.saveOfflineQueue();
-
     } finally {
       this.isProcessingQueue = false;
     }
@@ -175,39 +174,39 @@ class OfflineManager {
   private async executeOfflineAction(action: OfflineAction): Promise<void> {
     // This would be implemented based on your specific action types
     // For now, we'll just simulate processing
-    
+
     switch (action.type) {
-      case 'analytics_event':
+      case "analytics_event":
         // Send queued analytics events
-        console.log('Processing offline analytics event:', action.data);
+        console.log("Processing offline analytics event:", action.data);
         break;
-        
-      case 'user_feedback':
+
+      case "user_feedback":
         // Send queued user feedback
-        console.log('Processing offline user feedback:', action.data);
+        console.log("Processing offline user feedback:", action.data);
         break;
-        
+
       default:
-        console.warn('Unknown offline action type:', action.type);
+        console.warn("Unknown offline action type:", action.type);
     }
   }
 
   private async saveOfflineQueue(): Promise<void> {
     try {
-      await AsyncStorage.setItem('offline_queue', JSON.stringify(this.offlineQueue));
+      await AsyncStorage.setItem("offline_queue", JSON.stringify(this.offlineQueue));
     } catch (error) {
-      console.error('Failed to save offline queue:', error);
+      console.error("Failed to save offline queue:", error);
     }
   }
 
   private async loadOfflineQueue(): Promise<void> {
     try {
-      const queueData = await AsyncStorage.getItem('offline_queue');
+      const queueData = await AsyncStorage.getItem("offline_queue");
       if (queueData) {
         this.offlineQueue = JSON.parse(queueData);
       }
     } catch (error) {
-      console.error('Failed to load offline queue:', error);
+      console.error("Failed to load offline queue:", error);
       this.offlineQueue = [];
     }
   }
@@ -218,14 +217,13 @@ class OfflineManager {
     oldestAction?: Date;
     isProcessing: boolean;
   } {
-    const oldestAction = this.offlineQueue.length > 0 
-      ? new Date(Math.min(...this.offlineQueue.map(a => a.timestamp)))
-      : undefined;
+    const oldestAction =
+      this.offlineQueue.length > 0 ? new Date(Math.min(...this.offlineQueue.map((a) => a.timestamp))) : undefined;
 
     return {
       queueSize: this.offlineQueue.length,
       oldestAction,
-      isProcessing: this.isProcessingQueue
+      isProcessing: this.isProcessingQueue,
     };
   }
 
@@ -237,27 +235,24 @@ class OfflineManager {
 }
 
 // Singleton instance
-export const OfflineManager = new OfflineManager();
+export const offlineManager = new OfflineManager();
+
+import React from "react";
 
 // React hook for offline state
 export function useOfflineStatus() {
-  const React = require('react');
-  const [connectionState, setConnectionState] = React.useState<ConnectionState>(
-    OfflineManager.getConnectionState()
-  );
-  const [queueStatus, setQueueStatus] = React.useState(
-    OfflineManager.getOfflineQueueStatus()
-  );
+  const [connectionState, setConnectionState] = React.useState<ConnectionState>(offlineManager.getConnectionState());
+  const [queueStatus, setQueueStatus] = React.useState(offlineManager.getOfflineQueueStatus());
 
   React.useEffect(() => {
-    const unsubscribe = OfflineManager.addConnectionListener((state) => {
+    const unsubscribe = offlineManager.addConnectionListener((state) => {
       setConnectionState(state);
-      setQueueStatus(OfflineManager.getOfflineQueueStatus());
+      setQueueStatus(offlineManager.getOfflineQueueStatus());
     });
 
     // Update queue status periodically
     const interval = setInterval(() => {
-      setQueueStatus(OfflineManager.getOfflineQueueStatus());
+      setQueueStatus(offlineManager.getOfflineQueueStatus());
     }, 5000);
 
     return () => {
@@ -266,18 +261,18 @@ export function useOfflineStatus() {
     };
   }, []);
 
-  const queueAction = React.useCallback(async (action: Omit<OfflineAction, 'id' | 'timestamp' | 'retryCount'>) => {
-    await OfflineManager.queueAction(action);
-    setQueueStatus(OfflineManager.getOfflineQueueStatus());
+  const queueAction = React.useCallback(async (action: Omit<OfflineAction, "id" | "timestamp" | "retryCount">) => {
+    await offlineManager.queueAction(action);
+    setQueueStatus(offlineManager.getOfflineQueueStatus());
   }, []);
 
   return {
-    isOnline: connectionState.isConnected && (connectionState.isInternetReachable !== false),
+    isOnline: connectionState.isConnected && connectionState.isInternetReachable !== false,
     isOffline: !connectionState.isConnected || connectionState.isInternetReachable === false,
     connectionType: connectionState.type,
     queueSize: queueStatus.queueSize,
     isProcessingQueue: queueStatus.isProcessing,
-    queueAction
+    queueAction,
   };
 }
 
@@ -285,28 +280,28 @@ export function useOfflineStatus() {
 export async function networkAwareFetch(
   url: string,
   options: RequestInit = {},
-  offlineAction?: Omit<OfflineAction, 'id' | 'timestamp' | 'retryCount'>
+  offlineAction?: Omit<OfflineAction, "id" | "timestamp" | "retryCount">,
 ): Promise<Response> {
-  if (OfflineManager.isOffline()) {
+  if (offlineManager.isOffline()) {
     if (offlineAction) {
-      await OfflineManager.queueAction(offlineAction);
-      throw new Error('Request queued for when connection is restored');
+      await offlineManager.queueAction(offlineAction);
+      throw new Error("Request queued for when connection is restored");
     }
-    throw new Error('No internet connection available');
+    throw new Error("No internet connection available");
   }
 
   try {
     const response = await fetch(url, options);
-    
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-    
+
     return response;
   } catch (error) {
     // If network error and offline action provided, queue it
-    if (offlineAction && (error as Error).message.includes('network')) {
-      await OfflineManager.queueAction(offlineAction);
+    if (offlineAction && (error as Error).message.includes("network")) {
+      await offlineManager.queueAction(offlineAction);
     }
     throw error;
   }
@@ -356,24 +351,35 @@ export class OfflineStorage {
 // Offline-aware component wrapper
 export function withOfflineSupport<P extends object>(
   Component: React.ComponentType<P>,
-  offlineMessage: string = 'This feature requires an internet connection'
+  offlineMessage: string = "This feature requires an internet connection",
 ) {
-  const React = require('react');
-  
   return function OfflineWrapper(props: P) {
     const { isOffline } = useOfflineStatus();
-    
+
     if (isOffline) {
-      return React.createElement('div', {
-        style: {
-          padding: 16,
-          textAlign: 'center',
-          color: '#666',
-          fontStyle: 'italic'
-        }
-      }, offlineMessage);
+      return React.createElement(
+        View,
+        {
+          style: {
+            padding: 16,
+            alignItems: "center",
+            justifyContent: "center",
+          },
+        },
+        React.createElement(
+          Text,
+          {
+            style: {
+              color: "#666",
+              fontStyle: "italic",
+              textAlign: "center",
+            },
+          },
+          offlineMessage,
+        ),
+      );
     }
-    
+
     return React.createElement(Component, props);
   };
 }

@@ -9,15 +9,15 @@ on:
     types: [published]
 
 env:
-  NODE_VERSION: '20'
-  BUN_VERSION: '1.1.0'
+  NODE_VERSION: "20"
+  BUN_VERSION: "1.1.0"
 
 jobs:
   # Code Quality and Testing
   quality-check:
     name: Code Quality & Tests
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -68,7 +68,7 @@ jobs:
   security-audit:
     name: Security Audit
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -97,7 +97,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [quality-check, security-audit]
     if: github.event_name == 'push' || github.event_name == 'release'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -110,8 +110,8 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v3
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: "temurin"
+          java-version: "17"
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -188,7 +188,7 @@ jobs:
     runs-on: macos-latest
     needs: [quality-check, security-audit]
     if: github.event_name == 'push' || github.event_name == 'release'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -201,7 +201,7 @@ jobs:
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.2'
+          ruby-version: "3.2"
           bundler-cache: true
 
       - name: Cache Cocoapods
@@ -284,7 +284,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [quality-check, security-audit]
     if: github.ref == 'refs/heads/develop'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -312,7 +312,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-android]
     if: github.event_name == 'release'
-    
+
     steps:
       - name: Download Android artifacts
         uses: actions/download-artifact@v3
@@ -324,7 +324,7 @@ jobs:
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
           packageName: com.vibecode.phi4reasoning
-          releaseFiles: '*.aab'
+          releaseFiles: "*.aab"
           track: production
           status: completed
 
@@ -334,7 +334,7 @@ jobs:
     runs-on: macos-latest
     needs: [build-ios]
     if: github.event_name == 'release'
-    
+
     steps:
       - name: Download iOS artifacts
         uses: actions/download-artifact@v3
@@ -344,7 +344,7 @@ jobs:
       - name: Upload to App Store Connect
         uses: apple-actions/upload-testflight-build@v1
         with:
-          app-path: '*.ipa'
+          app-path: "*.ipa"
           issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
           api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
           api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
@@ -355,12 +355,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [deploy-android, deploy-ios]
     if: always()
-    
+
     steps:
       - name: Slack Notification
         uses: 8398a7/action-slack@v3
         with:
           status: ${{ job.status }}
-          channel: '#deployments'
+          channel: "#deployments"
           webhook_url: ${{ secrets.SLACK_WEBHOOK }}
           fields: repo,message,commit,author,action,eventName,ref,workflow

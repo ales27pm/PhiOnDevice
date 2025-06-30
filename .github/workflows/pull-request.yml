@@ -6,15 +6,15 @@ on:
     types: [opened, synchronize, reopened]
 
 env:
-  NODE_VERSION: '20'
-  BUN_VERSION: '1.1.0'
+  NODE_VERSION: "20"
+  BUN_VERSION: "1.1.0"
 
 jobs:
   # PR Quality Checks
   pr-checks:
     name: PR Quality Checks
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -69,7 +69,7 @@ jobs:
           script: |
             const fs = require('fs');
             let comment = '## 🧪 PR Quality Check Results\n\n';
-            
+
             // Add test results if available
             if (fs.existsSync('./coverage/coverage-summary.json')) {
               const coverage = JSON.parse(fs.readFileSync('./coverage/coverage-summary.json', 'utf8'));
@@ -80,14 +80,14 @@ jobs:
               comment += `- **Branches**: ${total.branches.pct}%\n`;
               comment += `- **Statements**: ${total.statements.pct}%\n\n`;
             }
-            
+
             comment += '### Checks Status\n';
             comment += '✅ TypeScript compilation\n';
             comment += '✅ ESLint validation\n';
             comment += '✅ Prettier formatting\n';
             comment += '✅ Unit tests\n';
             comment += '✅ Bundle size check\n';
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
@@ -99,7 +99,7 @@ jobs:
   build-validation:
     name: Build Validation
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -131,7 +131,7 @@ jobs:
   security-check:
     name: Security Check
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -158,7 +158,7 @@ jobs:
   performance-check:
     name: Performance Check
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
