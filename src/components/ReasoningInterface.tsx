@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -23,6 +23,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { cn } from '../utils/cn';
 import { useReasoningStore } from '../state/reasoningStore';
 import { generateReasoning, EXAMPLE_PROBLEMS } from '../api/phi4-reasoning';
+import { useErrorHandler, ErrorHandler, ValidationError } from '../utils/errorHandler';
+import { useAnalytics, Analytics } from '../utils/analytics';
+import { useAccessibility, AccessibilityHelper } from '../utils/accessibility';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -31,6 +34,10 @@ export function ReasoningInterface() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [inputText, setInputText] = useState('');
   const [streamedSolution, setStreamedSolution] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { handleError, withErrorHandling } = useErrorHandler();
+  const { trackInteraction } = useAnalytics();
+  const { isScreenReaderEnabled, isReduceMotionEnabled, announce } = useAccessibility();
   
   const {
     currentProblem,
@@ -76,6 +83,26 @@ export function ReasoningInterface() {
   const handleGenerate = async () => {
     if (!inputText.trim() || isGenerating) return;
 
+    // Track user interaction
+    trackInteraction('generate_reasoning', 'reasoning_interface', inputText.length);
+
+    // Clear any previous errors
+    setErrorMessage(null);
+
+    // Validate input
+    try {
+      ErrorHandler.validateMathProblem(inputText);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        setErrorMessage(error.message);
+        Analytics.trackReasoningFailed(inputText, 'VALIDATION_ERROR', error.message);
+        return;
+      }
+    }
+
+    // Announce start of reasoning for screen readers
+    AccessibilityHelper.announceReasoningStarted(inputText);
+
     // Button animation
     generateButtonScale.value = withSequence(
       withSpring(0.95),
@@ -90,32 +117,71 @@ export function ReasoningInterface() {
     loadingOpacity.value = withSpring(1);
     progressValue.value = 0;
 
-    try {
-      const result = await generateReasoning(
-        inputText,
-        (step) => {
-          addStep(step);
-          progressValue.value = withSpring(step.step / 5); // Assuming max 5 steps
-          // Auto-scroll to bottom when new step is added
-          setTimeout(() => {
-            scrollViewRef.current?.scrollToEnd({ animated: true });
-          }, 100);
-        },
-        (token) => {
-          setStreamedSolution(prev => prev + token);
-        }
-      );
+    // Track reasoning started
+    Analytics.trackReasoningStarted(inputText);
 
+    const result = await withErrorHandling(
+      async () => {
+        return await generateReasoning(
+          inputText,
+          (step) => {
+            addStep(step);
+            progressValue.value = withSpring(step.step / 5); // Assuming max 5 steps
+            
+            // Announce step for accessibility
+            AccessibilityHelper.announceReasoningStep(step.step, 5, step.description);
+            
+            // Auto-scroll to bottom when new step is added
+            setTimeout(() => {
+              scrollViewRef.current?.scrollToEnd({ 
+                animated: !isReduceMotionEnabled 
+              });
+            }, 100);
+          },
+          (token) => {
+            setStreamedSolution(prev => prev + token);
+          }
+        );
+      },
+      'ReasoningGeneration',
+      true
+    );
+
+    if (result) {
       setSolution(result.solution);
       completeGeneration(result.tokensPerSecond, result.duration);
       progressValue.value = withSpring(1);
       
-    } catch (error) {
-      Alert.alert('Error', 'Failed to generate reasoning. Please try again.');
-    } finally {
-      loadingOpacity.value = withSpring(0);
+      // Track successful completion
+      Analytics.trackReasoningCompleted({
+        problemType: 'general', // Could be enhanced with type detection
+        problemLength: inputText.length,
+        solutionTime: result.duration,
+        tokensPerSecond: result.tokensPerSecond,
+        stepCount: currentSteps.length,
+        wasSuccessful: true
+      });
+      
+      // Announce completion for accessibility
+      AccessibilityHelper.announceReasoningCompleted(result.solution, result.duration);
+    } else {
+      // Error was handled by ErrorHandler, but we need to reset UI state
+      setStreamedSolution('');
+      clearCurrent();
+      Analytics.trackReasoningFailed(inputText, 'GENERATION_FAILED', 'Unknown error during generation');
     }
+
+    loadingOpacity.value = withSpring(0);
   };
+
+  // Monitor memory usage periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      ErrorHandler.checkMemoryUsage();
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleExampleSelect = (problem: string) => {
     setInputText(problem);
@@ -173,15 +239,29 @@ export function ReasoningInterface() {
           </Text>
           
           <TextInput
-            className="bg-white border border-gray-300 rounded-xl px-4 py-3 text-base"
+            className={cn(
+              "bg-white border rounded-xl px-4 py-3 text-base",
+              errorMessage ? "border-red-300" : "border-gray-300"
+            )}
             placeholder="Enter a mathematical problem to solve..."
             multiline
             numberOfLines={4}
             value={inputText}
-            onChangeText={setInputText}
+            onChangeText={(text) => {
+              setInputText(text);
+              if (errorMessage) setErrorMessage(null); // Clear error when typing
+            }}
             editable={!isGenerating}
             style={{ textAlignVertical: 'top' }}
+            {...AccessibilityHelper.getProblemInputProps(!!errorMessage, errorMessage || undefined)}
           />
+
+          {/* Error Message Display */}
+          {errorMessage && (
+            <View className="mt-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              <Text className="text-sm text-red-700">{errorMessage}</Text>
+            </View>
+          )}
 
           {/* Example Problems */}
           <View className="mt-4">
@@ -219,6 +299,7 @@ export function ReasoningInterface() {
               style={generateButtonStyle}
               onPress={handleGenerate}
               disabled={!inputText.trim() || isGenerating}
+              {...AccessibilityHelper.getGenerateButtonProps(isGenerating, !!inputText.trim())}
             >
               <Ionicons 
                 name={isGenerating ? "hourglass" : "flash"} 

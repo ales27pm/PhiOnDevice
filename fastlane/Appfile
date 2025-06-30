@@ -1,8 +1,8 @@
-# iOS
+# iOS Configuration
 app_identifier("com.vibecode.phi4reasoning")
-apple_id("your-apple-id@example.com")
-team_id("YOUR_TEAM_ID")
+apple_id(ENV["APPLE_ID"] || "developer@vibecode.com")
+team_id(ENV["APPLE_TEAM_ID"] || "VIBECODE_TEAM_ID")
 
-# Android
-json_key_file("path/to/google-play-service-account.json")
+# Android Configuration  
+json_key_file(ENV["GOOGLE_PLAY_JSON_KEY_FILE"] || "android/google-play-service-account.json")
 package_name("com.vibecode.phi4reasoning")

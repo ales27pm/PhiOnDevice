@@ -218,8 +218,24 @@ function detectProblemType(problem: string): keyof typeof REASONING_PATTERNS | n
   return null;
 }
 
-// Simulate token-by-token generation with realistic timing
+// Primary reasoning function that delegates to enhanced engine
 export async function generateReasoning(
+  problem: string,
+  onStep: (step: ReasoningStep) => void,
+  onToken?: (token: string) => void
+): Promise<{ solution: string; tokensPerSecond: number; duration: number }> {
+  try {
+    // Use enhanced reasoning engine
+    const { generateEnhancedReasoning } = await import('./enhanced-phi4-reasoning');
+    return await generateEnhancedReasoning(problem, onStep, onToken);
+  } catch (error) {
+    console.warn('Enhanced reasoning failed, falling back to basic reasoning:', error);
+    return await generateBasicReasoning(problem, onStep, onToken);
+  }
+}
+
+// Fallback basic reasoning function
+async function generateBasicReasoning(
   problem: string,
   onStep: (step: ReasoningStep) => void,
   onToken?: (token: string) => void
