@@ -9,8 +9,21 @@ import type {
 import { Analytics } from '../utils/analytics';
 import { ErrorHandler, ReasoningError } from '../utils/errorHandler';
 
-// Event emitter for streaming tokens
-const eventEmitter = new NativeEventEmitter(NativeModules.NativePhi4LLM);
+// Event emitter for streaming tokens (created lazily)
+let eventEmitter: NativeEventEmitter | null = null;
+
+// Helper function to get event emitter safely
+function getEventEmitter(): NativeEventEmitter | null {
+  if (!NativePhi4LLM) {
+    return null;
+  }
+  
+  if (!eventEmitter) {
+    eventEmitter = new NativeEventEmitter(NativeModules.NativePhi4LLM);
+  }
+  
+  return eventEmitter;
+}
 
 export interface StreamingGenerationCallbacks {
   onToken: (token: string) => void;
@@ -421,13 +434,14 @@ class Phi4NativeLLM {
   // MARK: - Private Methods
 
   private setupEventListeners(): void {
-    if (!NativePhi4LLM) {
+    const emitter = getEventEmitter();
+    if (!emitter) {
       console.log('⚠️ Native LLM module not available, skipping event listener setup');
       return;
     }
     
     // Listen for streaming token events
-    eventEmitter.addListener('onTokenGenerated', (event) => {
+    emitter.addListener('onTokenGenerated', (event) => {
       const { callbackId, token, isComplete } = event;
       const callbacks = this.streamingCallbacks.get(callbackId);
       
