@@ -218,18 +218,33 @@ function detectProblemType(problem: string): keyof typeof REASONING_PATTERNS | n
   return null;
 }
 
-// Primary reasoning function that delegates to enhanced engine
+// Primary reasoning function that uses native LLM when available
 export async function generateReasoning(
   problem: string,
   onStep: (step: ReasoningStep) => void,
   onToken?: (token: string) => void,
 ): Promise<{ solution: string; tokensPerSecond: number; duration: number }> {
   try {
-    // Use enhanced reasoning engine
+    // Try native LLM first (iOS only)
+    const { generateNativeReasoning, isNativeLLMSupported } = await import("./phi4-reasoning-native");
+    
+    if (isNativeLLMSupported) {
+      console.log("🚀 Using native Phi-4 Core ML inference");
+      const result = await generateNativeReasoning(problem, onStep, onToken);
+      return {
+        solution: result.solution,
+        tokensPerSecond: result.tokensPerSecond,
+        duration: result.duration,
+      };
+    }
+    
+    // Fallback to enhanced mock reasoning
+    console.log("📱 Using enhanced mock reasoning (native not supported)");
     const { generateEnhancedReasoning } = await import("./enhanced-phi4-reasoning");
     return await generateEnhancedReasoning(problem, onStep, onToken);
+    
   } catch (error) {
-    console.warn("Enhanced reasoning failed, falling back to basic reasoning:", error);
+    console.warn("Advanced reasoning failed, falling back to basic reasoning:", error);
     return await generateBasicReasoning(problem, onStep, onToken);
   }
 }
