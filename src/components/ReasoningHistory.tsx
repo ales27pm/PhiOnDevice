@@ -74,15 +74,17 @@ function SessionCard({ session, onSelect, onDelete }: SessionCardProps) {
   };
 
   return (
-    <AnimatedPressable
-      className="bg-white rounded-xl mb-3 overflow-hidden"
-      style={cardStyle}
-      onPress={handlePress}
-      onLongPress={handleLongPress}
+    <Animated.View
       entering={FadeInUp}
       exiting={FadeOutUp}
       layout={Layout.springify()}
     >
+      <AnimatedPressable
+        className="bg-white rounded-xl overflow-hidden"
+        style={cardStyle}
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+      >
       {/* Card Header */}
       <View className="p-4 border-b border-gray-100">
         <View className="flex-row items-start justify-between">
@@ -158,6 +160,7 @@ function SessionCard({ session, onSelect, onDelete }: SessionCardProps) {
         </Animated.View>
       )}
     </AnimatedPressable>
+    </Animated.View>
   );
 }
 

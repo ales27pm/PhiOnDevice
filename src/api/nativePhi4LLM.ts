@@ -27,10 +27,21 @@ class Phi4NativeLLM {
     this.setupEventListeners();
   }
 
+  // Helper method to ensure native module is available
+  private ensureNativeModule(): void {
+    if (!NativePhi4LLM) {
+      throw new ReasoningError('NATIVE_MODULE_UNAVAILABLE', 'Native Phi-4 module is not available in this environment');
+    }
+  }
+
   // MARK: - Model Lifecycle
 
   async loadModel(modelPath: string): Promise<boolean> {
     try {
+      if (!NativePhi4LLM) {
+        throw new ReasoningError('NATIVE_MODULE_UNAVAILABLE', 'Native Phi-4 module is not available');
+      }
+      
       Analytics.track('native_model_load_started', { modelPath });
       
       const result = await NativePhi4LLM.loadModel(modelPath);
@@ -63,6 +74,9 @@ class Phi4NativeLLM {
 
   async unloadModel(): Promise<void> {
     try {
+      if (!NativePhi4LLM) {
+        throw new ReasoningError('NATIVE_MODULE_UNAVAILABLE', 'Native Phi-4 module is not available');
+      }
       await NativePhi4LLM.unloadModel();
       
       this.isInitialized = false;
@@ -79,6 +93,7 @@ class Phi4NativeLLM {
 
   async isModelLoaded(): Promise<boolean> {
     try {
+      if (!NativePhi4LLM) return false;
       return await NativePhi4LLM.isModelLoaded();
     } catch (error) {
       ErrorHandler.logError(error as Error, 'NativePhi4LLM.isModelLoaded');
@@ -88,7 +103,8 @@ class Phi4NativeLLM {
 
   async getModelInfo(): Promise<Phi4ModelInfo> {
     try {
-      return await NativePhi4LLM.getModelInfo();
+      this.ensureNativeModule();
+      return await NativePhi4LLM!.getModelInfo();
     } catch (error) {
       ErrorHandler.logError(error as Error, 'NativePhi4LLM.getModelInfo');
       throw error;
@@ -124,7 +140,8 @@ class Phi4NativeLLM {
         temperature: fullConfig.temperature,
       });
 
-      const result = await NativePhi4LLM.generateText(prompt, fullConfig);
+      this.ensureNativeModule();
+      const result = await NativePhi4LLM!.generateText(prompt, fullConfig);
 
       const duration = Date.now() - startTime;
       
@@ -185,7 +202,8 @@ class Phi4NativeLLM {
         callbackId,
       });
 
-      await NativePhi4LLM.startStreamingGeneration(prompt, fullConfig, callbackId);
+      this.ensureNativeModule();
+      await NativePhi4LLM!.startStreamingGeneration(prompt, fullConfig, callbackId);
 
       console.log(`✅ Started streaming generation for prompt: ${prompt.substring(0, 50)}...`);
 
@@ -211,7 +229,8 @@ class Phi4NativeLLM {
 
   async stopStreamingGeneration(): Promise<void> {
     try {
-      await NativePhi4LLM.stopStreamingGeneration();
+      this.ensureNativeModule();
+      await NativePhi4LLM!.stopStreamingGeneration();
       
       // Clear all streaming callbacks
       this.streamingCallbacks.clear();
@@ -233,7 +252,8 @@ class Phi4NativeLLM {
     }
 
     try {
-      const tokens = await NativePhi4LLM.tokenize(text);
+      this.ensureNativeModule();
+      const tokens = await NativePhi4LLM!.tokenize(text);
       
       Analytics.track('native_tokenization', {
         textLength: text.length,
@@ -254,7 +274,8 @@ class Phi4NativeLLM {
     }
 
     try {
-      const text = await NativePhi4LLM.detokenize(tokens);
+      this.ensureNativeModule();
+      const text = await NativePhi4LLM!.detokenize(tokens);
       
       Analytics.track('native_detokenization', {
         tokenCount: tokens.length,
@@ -275,7 +296,8 @@ class Phi4NativeLLM {
     }
 
     try {
-      return await NativePhi4LLM.getTokenCount(text);
+      this.ensureNativeModule();
+      return await NativePhi4LLM!.getTokenCount(text);
     } catch (error) {
       ErrorHandler.logError(error as Error, 'NativePhi4LLM.getTokenCount');
       throw error;
@@ -286,7 +308,8 @@ class Phi4NativeLLM {
 
   async getPerformanceMetrics(): Promise<Phi4PerformanceMetrics> {
     try {
-      const metrics = await NativePhi4LLM.getPerformanceMetrics();
+      this.ensureNativeModule();
+      const metrics = await NativePhi4LLM!.getPerformanceMetrics();
       
       Analytics.track('native_performance_metrics', metrics);
       
@@ -307,7 +330,8 @@ class Phi4NativeLLM {
       console.log('🔄 Warming up native model...');
       const startTime = Date.now();
       
-      await NativePhi4LLM.warmupModel();
+      this.ensureNativeModule();
+      await NativePhi4LLM!.warmupModel();
       
       const duration = Date.now() - startTime;
       
@@ -326,7 +350,8 @@ class Phi4NativeLLM {
     }
 
     try {
-      await NativePhi4LLM.clearKVCache();
+      this.ensureNativeModule();
+      await NativePhi4LLM!.clearKVCache();
       
       Analytics.track('native_kv_cache_cleared');
       console.log('✅ KV cache cleared');
@@ -341,7 +366,8 @@ class Phi4NativeLLM {
 
   async getMemoryUsage(): Promise<number> {
     try {
-      return await NativePhi4LLM.getMemoryUsage();
+      this.ensureNativeModule();
+      return await NativePhi4LLM!.getMemoryUsage();
     } catch (error) {
       ErrorHandler.logError(error as Error, 'NativePhi4LLM.getMemoryUsage');
       return 0;
@@ -350,7 +376,8 @@ class Phi4NativeLLM {
 
   async triggerMemoryCleanup(): Promise<void> {
     try {
-      await NativePhi4LLM.triggerMemoryCleanup();
+      this.ensureNativeModule();
+      await NativePhi4LLM!.triggerMemoryCleanup();
       
       Analytics.track('native_memory_cleanup');
       console.log('✅ Memory cleanup triggered');
@@ -365,7 +392,8 @@ class Phi4NativeLLM {
 
   async setComputeUnits(units: 'all' | 'cpuOnly' | 'cpuAndGPU' | 'cpuAndNeuralEngine'): Promise<void> {
     try {
-      await NativePhi4LLM.setComputeUnits(units);
+      this.ensureNativeModule();
+      await NativePhi4LLM!.setComputeUnits(units);
       
       Analytics.track('native_compute_units_changed', { units });
       console.log(`✅ Compute units set to: ${units}`);
@@ -378,7 +406,8 @@ class Phi4NativeLLM {
 
   async setQuantizationMode(mode: 'none' | 'linear' | 'dynamic'): Promise<void> {
     try {
-      await NativePhi4LLM.setQuantizationMode(mode);
+      this.ensureNativeModule();
+      await NativePhi4LLM!.setQuantizationMode(mode);
       
       Analytics.track('native_quantization_changed', { mode });
       console.log(`✅ Quantization mode set to: ${mode}`);
@@ -392,6 +421,11 @@ class Phi4NativeLLM {
   // MARK: - Private Methods
 
   private setupEventListeners(): void {
+    if (!NativePhi4LLM) {
+      console.log('⚠️ Native LLM module not available, skipping event listener setup');
+      return;
+    }
+    
     // Listen for streaming token events
     eventEmitter.addListener('onTokenGenerated', (event) => {
       const { callbackId, token, isComplete } = event;
@@ -458,8 +492,8 @@ class Phi4NativeLLM {
 // Singleton instance
 export const nativePhi4LLM = new Phi4NativeLLM();
 
-// Platform check - only available on iOS
-export const isNativeLLMSupported = Platform.OS === 'ios';
+// Platform check - only available on iOS and when native module is available
+export const isNativeLLMSupported = Platform.OS === 'ios' && NativePhi4LLM !== null;
 
 // Helper function to get model bundle path
 export function getModelBundlePath(): string {

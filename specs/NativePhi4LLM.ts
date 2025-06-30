@@ -77,4 +77,5 @@ export interface Spec extends TurboModule {
   setQuantizationMode(mode: 'none' | 'linear' | 'dynamic'): Promise<void>;
 }
 
-export default TurboModuleRegistry.getEnforcing<Spec>('NativePhi4LLM');
+// Use get() instead of getEnforcing() to handle cases where the native module isn't compiled
+export default TurboModuleRegistry.get<Spec>('NativePhi4LLM');
