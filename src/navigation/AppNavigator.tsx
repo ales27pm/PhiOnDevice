@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { ReasoningInterface } from "../components/ReasoningInterface";
 import { ReasoningHistory } from "../components/ReasoningHistory";
 import { ReasoningSettings } from "../components/ReasoningSettings";
+import AdvancedAgentInterface from "../components/AdvancedAgentInterface";
 
 const Tab = createBottomTabNavigator();
 
@@ -18,6 +19,8 @@ export function AppNavigator() {
 
             if (route.name === "Reasoning") {
               iconName = focused ? "flash" : "flash-outline";
+            } else if (route.name === "Agent") {
+              iconName = focused ? "chatbubbles" : "chatbubbles-outline";
             } else if (route.name === "History") {
               iconName = focused ? "document-text" : "document-text-outline";
             } else if (route.name === "Settings") {
@@ -46,6 +49,7 @@ export function AppNavigator() {
         })}
       >
         <Tab.Screen name="Reasoning" component={ReasoningInterface} options={{ title: "Phi-4 AI" }} />
+        <Tab.Screen name="Agent" component={AdvancedAgentInterface} options={{ title: "Agent" }} />
         <Tab.Screen name="History" component={ReasoningHistory} options={{ title: "History" }} />
         <Tab.Screen name="Settings" component={ReasoningSettings} options={{ title: "Settings" }} />
       </Tab.Navigator>
