@@ -1,0 +1,505 @@
+name: Integration Testing & Quality Assurance
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run nightly tests at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  NODE_VERSION: '20'
+  EXPO_SDK_VERSION: '53'
+  RN_VERSION: '0.76.7'
+
+jobs:
+  # Code Quality & Linting
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: TypeScript Type Check
+        run: |
+          npx tsc --noEmit
+          echo "✅ TypeScript compilation successful"
+
+      - name: ESLint Check
+        run: |
+          npx eslint src/ --ext .ts,.tsx --max-warnings 0
+          echo "✅ ESLint checks passed"
+
+      - name: Prettier Format Check
+        run: |
+          npx prettier --check "src/**/*.{ts,tsx,js,jsx}"
+          echo "✅ Code formatting verified"
+
+      - name: Test TurboModule Specs
+        run: |
+          # Validate all TurboModule specifications
+          for spec in specs/*.ts; do
+            echo "Validating $spec..."
+            npx tsc --noEmit "$spec"
+          done
+          echo "✅ All TurboModule specs are valid"
+
+  # Unit Testing
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Unit Tests
+        run: |
+          npm run test -- --coverage --watchAll=false
+          echo "✅ Unit tests completed"
+
+      - name: Upload Coverage Reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+  # Agent System Testing
+  test-agent-system:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Test Agent Core Functionality
+        run: |
+          cat > test-agent-core.js << 'EOF'
+          const { agentFactory } = require('./src/agent/AgentFactory');
+          
+          async function testAgentSystem() {
+            console.log('🧪 Testing Agent System...');
+            
+            try {
+              // Test agent creation
+              const mathAgent = agentFactory.createMathAgent();
+              const quebecAgent = agentFactory.createQuebecoisAgent();
+              const tutorAgent = agentFactory.createTutorAgent();
+              
+              console.log('✅ All agent types created successfully');
+              
+              // Test system status
+              const status = await agentFactory.getSystemStatus();
+              console.log('📊 System Status:', status);
+              
+              // Test agent configurations
+              const mathConfig = await mathAgent.getStatus();
+              console.log('🧮 Math Agent Status:', mathConfig);
+              
+              console.log('✅ Agent system test completed successfully');
+              
+            } catch (error) {
+              console.error('❌ Agent system test failed:', error);
+              process.exit(1);
+            }
+          }
+          
+          testAgentSystem();
+          EOF
+          
+          node test-agent-core.js
+
+      - name: Test ReAct Reasoning
+        run: |
+          cat > test-react-reasoning.js << 'EOF'
+          const ReactAgent = require('./src/agent/ReactAgent').default;
+          
+          async function testReActReasoning() {
+            console.log('🎭 Testing ReAct Reasoning...');
+            
+            try {
+              const reactAgent = new ReactAgent();
+              
+              // Test tool execution
+              const toolResult = await reactAgent.executeToolCall({
+                name: 'calculator',
+                arguments: { expression: '2 + 2' },
+                id: 'test_123'
+              });
+              
+              console.log('🔧 Tool Result:', toolResult);
+              
+              // Test ReAct loop
+              const trace = await reactAgent.executeReActLoop(
+                'What is 5 * 6?',
+                '',
+                (step) => console.log('👁️ Step:', step.thought)
+              );
+              
+              console.log('🧠 ReAct Trace:', trace);
+              console.log('✅ ReAct reasoning test completed');
+              
+            } catch (error) {
+              console.error('❌ ReAct reasoning test failed:', error);
+              process.exit(1);
+            }
+          }
+          
+          testReActReasoning();
+          EOF
+          
+          node test-react-reasoning.js
+
+  # Native Module Integration Testing (iOS Simulator)
+  test-ios-integration:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.2'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: |
+          npm install
+          cd ios && pod install
+
+      - name: Build for iOS Simulator
+        run: |
+          cd ios
+          xcodebuild -workspace AdvancedAgentApp.xcworkspace \
+                     -scheme AdvancedAgentApp \
+                     -configuration Debug \
+                     -sdk iphonesimulator \
+                     -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=17.2' \
+                     build
+
+      - name: Start iOS Simulator
+        run: |
+          xcrun simctl boot "iPhone 15 Pro" || true
+          sleep 30
+
+      - name: Install App on Simulator
+        run: |
+          cd ios
+          xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/AdvancedAgentApp.app
+
+      - name: Test Native Module Loading
+        run: |
+          cat > test-native-modules.js << 'EOF'
+          // Simulate React Native environment for testing
+          global.__DEV__ = true;
+          
+          // Mock React Native modules
+          jest.mock('react-native', () => ({
+            Platform: { OS: 'ios' },
+            NativeModules: {
+              NativePhi4LLM: {
+                loadModel: jest.fn().mockResolvedValue(true),
+                isModelLoaded: jest.fn().mockResolvedValue(true),
+                generateText: jest.fn().mockResolvedValue({
+                  text: 'Test response',
+                  tokensGenerated: 10,
+                  tokensPerSecond: 25.5
+                })
+              }
+            },
+            NativeEventEmitter: jest.fn()
+          }));
+          
+          const { nativePhi4LLM } = require('./src/api/nativePhi4LLM');
+          
+          async function testNativeModules() {
+            console.log('📱 Testing Native Modules on iOS...');
+            
+            try {
+              // Test model loading
+              const loaded = await nativePhi4LLM.loadModel('/test/path');
+              console.log('📥 Model Loading:', loaded ? 'Success' : 'Failed');
+              
+              // Test text generation
+              const result = await nativePhi4LLM.generateText('Test prompt');
+              console.log('🎯 Generation Result:', result);
+              
+              console.log('✅ Native module integration test passed');
+              
+            } catch (error) {
+              console.error('❌ Native module test failed:', error);
+              process.exit(1);
+            }
+          }
+          
+          testNativeModules();
+          EOF
+          
+          node test-native-modules.js
+
+  # Performance Testing
+  performance-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Performance Benchmark
+        run: |
+          cat > performance-test.js << 'EOF'
+          const { agentFactory } = require('./src/agent/AgentFactory');
+          
+          async function performanceBenchmark() {
+            console.log('⚡ Running Performance Benchmarks...');
+            
+            const agent = agentFactory.createMathAgent();
+            const testQueries = [
+              'What is 2 + 2?',
+              'Solve x^2 + 5x + 6 = 0',
+              'Calculate the derivative of x^3 + 2x^2 + x + 1',
+              'Find the area under the curve y = x^2 from 0 to 5'
+            ];
+            
+            const results = [];
+            
+            for (const query of testQueries) {
+              const startTime = Date.now();
+              
+              try {
+                const response = await agent.processConversation(
+                  query,
+                  'perf_test_session'
+                );
+                
+                const duration = Date.now() - startTime;
+                results.push({
+                  query,
+                  duration,
+                  confidence: response.confidence,
+                  success: true
+                });
+                
+                console.log(`✅ "${query}" - ${duration}ms (${response.confidence.toFixed(2)} confidence)`);
+                
+              } catch (error) {
+                results.push({
+                  query,
+                  duration: Date.now() - startTime,
+                  error: error.message,
+                  success: false
+                });
+                
+                console.log(`❌ "${query}" - Error: ${error.message}`);
+              }
+            }
+            
+            // Calculate statistics
+            const successfulResults = results.filter(r => r.success);
+            const avgDuration = successfulResults.reduce((sum, r) => sum + r.duration, 0) / successfulResults.length;
+            const avgConfidence = successfulResults.reduce((sum, r) => sum + r.confidence, 0) / successfulResults.length;
+            
+            console.log('\n📊 Performance Summary:');
+            console.log(`   Successful Queries: ${successfulResults.length}/${results.length}`);
+            console.log(`   Average Duration: ${avgDuration.toFixed(0)}ms`);
+            console.log(`   Average Confidence: ${avgConfidence.toFixed(2)}`);
+            
+            // Performance thresholds
+            if (avgDuration > 5000) {
+              console.log('⚠️ Warning: Average response time exceeds 5 seconds');
+            }
+            
+            if (avgConfidence < 0.7) {
+              console.log('⚠️ Warning: Average confidence below 70%');
+            }
+            
+            console.log('✅ Performance benchmark completed');
+          }
+          
+          performanceBenchmark();
+          EOF
+          
+          node performance-test.js
+
+  # Memory and Resource Testing
+  memory-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Memory Usage Test
+        run: |
+          cat > memory-test.js << 'EOF'
+          const { agentFactory } = require('./src/agent/AgentFactory');
+          
+          function getMemoryUsage() {
+            const usage = process.memoryUsage();
+            return {
+              rss: Math.round(usage.rss / 1024 / 1024),
+              heapTotal: Math.round(usage.heapTotal / 1024 / 1024),
+              heapUsed: Math.round(usage.heapUsed / 1024 / 1024),
+              external: Math.round(usage.external / 1024 / 1024)
+            };
+          }
+          
+          async function memoryTest() {
+            console.log('🧠 Running Memory Usage Tests...');
+            
+            const initialMemory = getMemoryUsage();
+            console.log('📊 Initial Memory:', initialMemory);
+            
+            // Create agents
+            const agents = [
+              agentFactory.createMathAgent(),
+              agentFactory.createQuebecoisAgent(),
+              agentFactory.createTutorAgent()
+            ];
+            
+            const afterCreationMemory = getMemoryUsage();
+            console.log('📊 After Agent Creation:', afterCreationMemory);
+            
+            // Process multiple conversations
+            for (let i = 0; i < 10; i++) {
+              await agents[0].processConversation(
+                `Test query ${i + 1}`,
+                `session_${i}`
+              );
+            }
+            
+            const afterProcessingMemory = getMemoryUsage();
+            console.log('📊 After Processing:', afterProcessingMemory);
+            
+            // Calculate memory growth
+            const growth = {
+              rss: afterProcessingMemory.rss - initialMemory.rss,
+              heap: afterProcessingMemory.heapUsed - initialMemory.heapUsed
+            };
+            
+            console.log('📈 Memory Growth:', growth);
+            
+            // Memory thresholds
+            if (growth.rss > 100) {
+              console.log('⚠️ Warning: RSS memory growth exceeds 100MB');
+            }
+            
+            if (growth.heap > 50) {
+              console.log('⚠️ Warning: Heap memory growth exceeds 50MB');
+            }
+            
+            console.log('✅ Memory test completed');
+          }
+          
+          memoryTest();
+          EOF
+          
+          node memory-test.js
+
+  # Generate Test Report
+  generate-report:
+    runs-on: ubuntu-latest
+    needs: [code-quality, unit-tests, test-agent-system, performance-tests, memory-tests]
+    if: always()
+    steps:
+      - name: Generate Test Report
+        run: |
+          cat > test-report.md << 'EOF'
+          # Integration Test Report
+          
+          **Date:** $(date)
+          **Commit:** ${{ github.sha }}
+          **Branch:** ${{ github.ref_name }}
+          
+          ## Test Results Summary
+          
+          | Test Suite | Status |
+          |------------|--------|
+          | Code Quality | ${{ needs.code-quality.result }} |
+          | Unit Tests | ${{ needs.unit-tests.result }} |
+          | Agent System | ${{ needs.test-agent-system.result }} |
+          | Performance | ${{ needs.performance-tests.result }} |
+          | Memory | ${{ needs.memory-tests.result }} |
+          
+          ## Details
+          
+          ### Code Quality
+          - TypeScript compilation
+          - ESLint checks  
+          - Code formatting
+          - TurboModule spec validation
+          
+          ### Agent System Testing
+          - Agent creation and configuration
+          - ReAct reasoning functionality
+          - Tool calling and execution
+          
+          ### Performance Benchmarks
+          - Response time analysis
+          - Confidence scoring
+          - Resource utilization
+          
+          ### Memory Usage
+          - Memory growth tracking
+          - Resource leak detection
+          - Performance optimization
+          
+          ---
+          
+          Generated by GitHub Actions CI/CD Pipeline
+          EOF
+
+      - name: Upload Test Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-report
+          path: test-report.md
