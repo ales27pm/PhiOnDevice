@@ -36,3 +36,6 @@ yarn-error.*
 # iOS & Android
 ios/
 android/
+
+# Special environment files with sensitive credentials
+.specialenv/

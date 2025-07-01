@@ -39,6 +39,7 @@ import {
 import { cn } from '../utils/cn';
 import { Analytics } from '../utils/analytics';
 import SystemStatusDebug from './SystemStatusDebug';
+import GitHubStatusDebug from './GitHubStatusDebug';
 
 interface ConversationMessage extends AgentMessage {
   isStreaming?: boolean;
@@ -481,6 +482,9 @@ export default function AdvancedAgentInterface() {
         <View className="py-4">
           {/* System Status Debug Component */}
           <SystemStatusDebug />
+          
+          {/* GitHub Integration Debug Component */}
+          <GitHubStatusDebug />
           
           {messages.map(renderMessage)}
           {renderRealtimeReasoning()}
