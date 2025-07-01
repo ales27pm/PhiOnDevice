@@ -1,0 +1,71 @@
+# .github/workflows/compile-native.yml
+
+name: Compile Native iOS Project
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'native-monGARS/**'
+      - 'modules/**'
+
+jobs:
+  compile-ios:
+    runs-on: macos-14
+    
+    # This is the master fix. All subsequent 'run' commands in this job
+    # will execute from within the 'native-monGARS' subdirectory.
+    defaults:
+      run:
+        working-directory: ./native-monGARS
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          # The cache path is relative to the working directory
+          cache: 'npm'
+          cache-dependency-path: native-monGARS/package-lock.json
+
+      - name: Install Dependencies & Apply Patches
+        # This will now run inside './native-monGARS' and find all necessary files
+        run: |
+          npx patch-package
+          npm ci
+
+      - name: Generate native iOS project
+        run: npx expo prebuild --platform ios --no-install --clean
+
+      - name: Modify Podfile to add Third-Party Sources
+        run: |
+          PODFILE_PATH="ios/Podfile"
+          {
+            echo "source 'https://github.com/google/sentencepiece.git'"
+            echo "source 'https://github.com/CocoaPods/Specs.git'"
+            cat "$PODFILE_PATH"
+          } > "$PODFILE_PATH.tmp" && mv "$PODFILE_PATH.tmp" "$PODFILE_PATH"
+
+      - name: Set up Ruby and Bundler
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          # This action's working directory must be relative to the repo root
+          working-directory: native-monGARS/ios
+
+      - name: Run Pod Install
+        working-directory: ./ios # This is now relative to the job's working-directory
+        run: pod install --repo-update
+      
+      - name: Compile Xcode Project
+        # The workspace and scheme are now relative to the job's working directory
+        run: |
+          xcodebuild build -workspace ios/nativemongars.xcworkspace \
+            -scheme nativemongars \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 15 Pro'

@@ -1,0 +1,71 @@
+# .github/workflows/deploy-ios.yml
+
+name: Deploy iOS to TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'App Version (e.g., 1.0.1)'
+        required: true
+        type: string
+      buildNumber:
+        description: 'iOS Build Number (e.g., 6)'
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./native-monGARS
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: 'npm'
+          cache-dependency-path: native-monGARS/package-lock.json
+
+      - name: Install Dependencies & Apply Patches
+        run: |
+          npx patch-package
+          npm install --legacy-peer-deps
+
+      - name: Set up EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Download On-Device Model Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: on-device-models
+          path: native-monGARS/Models # Download directly into the project's Models dir
+      
+      - name: Verify Model Artifacts
+        run: |
+          echo "Verifying downloaded model artifacts..."
+          ls -lR Models
+          if [ ! -d "Models/LLM.mlmodelc" ]; then
+            echo "::error::LLM.mlmodelc not found! Run the 'Build On-Device Core ML Model' workflow first."
+            exit 1
+          fi
+
+      - name: Set App Version and Build Number
+        run: |
+          echo "Setting app version to ${{ github.event.inputs.version }} and build number to ${{ github.event.inputs.buildNumber }}"
+          sudo apt-get update && sudo apt-get install -y jq
+          jq '.expo.version = "${{ github.event.inputs.version }}" | .expo.ios.buildNumber = "${{ github.event.inputs.buildNumber }}"' app.json > tmp.$$.json && mv tmp.$$.json app.json
+          echo "Updated app.json:"
+          cat app.json
+
+      - name: Build and Submit to TestFlight
+        run: eas build --platform ios --profile production --non-interactive --auto-submit

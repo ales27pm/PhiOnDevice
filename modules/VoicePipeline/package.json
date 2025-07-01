@@ -1,0 +1,42 @@
+{
+  "name": "voice-pipeline",
+  "version": "0.0.1",
+  "description": "Advanced voice pipeline with wake-word detection and STT",
+  "main": "src/index.ts",
+  "source": "src/index.ts",
+  "files": [
+    "src",
+    "ios",
+    "VoicePipeline.podspec"
+  ],
+  "keywords": [
+    "react-native",
+    "ios",
+    "turbo-module",
+    "voice",
+    "speech",
+    "wake-word"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ales27pm/native-monGARS.git"
+  },
+  "author": "ales27pm",
+  "license": "MIT",
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib"
+  },
+  "codegenConfig": {
+    "name": "VoicePipelineSpec",
+    "type": "modules",
+    "jsSrcsDir": "src"
+  },
+  "devDependencies": {
+    "react-native": "*"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  }
+}

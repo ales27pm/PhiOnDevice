@@ -1,0 +1,41 @@
+{
+  "name": "on-device-llm",
+  "version": "0.0.1",
+  "description": "On-device LLM inference using Core ML",
+  "main": "src/index.ts",
+  "source": "src/index.ts",
+  "files": [
+    "src",
+    "ios",
+    "OnDeviceLLM.podspec"
+  ],
+  "keywords": [
+    "react-native",
+    "ios",
+    "turbo-module",
+    "core-ml",
+    "llm"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ales27pm/native-monGARS.git"
+  },
+  "author": "ales27pm",
+  "license": "MIT",
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib"
+  },
+  "codegenConfig": {
+    "name": "OnDeviceLLMSpec",
+    "type": "modules",
+    "jsSrcsDir": "src"
+  },
+  "devDependencies": {
+    "react-native": "*"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  }
+}
