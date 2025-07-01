@@ -550,6 +550,129 @@ export class AdaptiveLearningSystem {
     };
   }
 
+  // Session data management
+  private initializeSessionData(sessionId: string, userId: string): SessionLearningData {
+    return {
+      sessionId,
+      userId,
+      startTime: Date.now(),
+      interactions: [],
+      cumulativePerformance: 0.5,
+    };
+  }
+
+  private updateSessionData(sessionData: SessionLearningData, signals: LearningSignals): void {
+    sessionData.interactions.push(signals);
+    
+    // Update cumulative performance
+    const successRate = sessionData.interactions.filter(i => i.userSuccess).length / sessionData.interactions.length;
+    sessionData.cumulativePerformance = successRate;
+  }
+
+  private async updateUserModel(
+    model: UserModel,
+    signals: LearningSignals,
+    sessionData: SessionLearningData
+  ): Promise<void> {
+    // Update concept mastery
+    for (const concept of signals.conceptsInvolved) {
+      let mastery = model.knowledgeProfile.conceptMastery.get(concept);
+      if (!mastery) {
+        mastery = {
+          concept,
+          masteryLevel: 0.5,
+          attempts: 0,
+          successes: 0,
+          lastPracticed: Date.now(),
+          averageTime: signals.responseTime,
+          confidence: 0.5,
+        };
+      }
+      
+      mastery.attempts++;
+      if (signals.userSuccess) {
+        mastery.successes++;
+      }
+      mastery.masteryLevel = mastery.successes / mastery.attempts;
+      mastery.lastPracticed = Date.now();
+      
+      model.knowledgeProfile.conceptMastery.set(concept, mastery);
+    }
+
+    // Update performance metrics
+    model.performance.sessionQuality.push(sessionData.cumulativePerformance);
+    model.performance.engagementLevel = signals.engagementLevel;
+    model.performance.overallProgress = this.calculateOverallProgress(model);
+    
+    model.lastUpdated = Date.now();
+  }
+
+  private calculateOverallProgress(model: UserModel): number {
+    const masteryValues = Array.from(model.knowledgeProfile.conceptMastery.values());
+    if (masteryValues.length === 0) return 0.5;
+    
+    const averageMastery = masteryValues.reduce((sum, m) => sum + m.masteryLevel, 0) / masteryValues.length;
+    return averageMastery;
+  }
+
+  private identifyNextMilestones(model: UserModel): string[] {
+    const milestones: string[] = [];
+    
+    // Identify areas that need improvement
+    const weakAreas = Array.from(model.knowledgeProfile.conceptMastery.entries())
+      .filter(([, mastery]) => mastery.masteryLevel < 0.7)
+      .map(([concept]) => concept);
+    
+    if (weakAreas.length > 0) {
+      milestones.push(`Improve understanding of ${weakAreas[0]}`);
+    }
+    
+    // Identify areas ready for advancement
+    const strongAreas = Array.from(model.knowledgeProfile.conceptMastery.entries())
+      .filter(([, mastery]) => mastery.masteryLevel > 0.8)
+      .map(([concept]) => concept);
+    
+    if (strongAreas.length > 0) {
+      milestones.push(`Advanced problems in ${strongAreas[0]}`);
+    }
+    
+    return milestones;
+  }
+
+  private calculateAverageSessionQuality(model: UserModel): number {
+    const qualities = model.performance.sessionQuality;
+    if (qualities.length === 0) return 0.5;
+    
+    return qualities.reduce((sum, q) => sum + q, 0) / qualities.length;
+  }
+
+  private calculateEngagementTrend(model: UserModel): 'improving' | 'stable' | 'declining' {
+    const recent = model.performance.sessionQuality.slice(-5);
+    if (recent.length < 3) return 'stable';
+    
+    const firstHalf = recent.slice(0, Math.floor(recent.length / 2));
+    const secondHalf = recent.slice(Math.floor(recent.length / 2));
+    
+    const firstAvg = firstHalf.reduce((sum, q) => sum + q, 0) / firstHalf.length;
+    const secondAvg = secondHalf.reduce((sum, q) => sum + q, 0) / secondHalf.length;
+    
+    if (secondAvg > firstAvg + 0.1) return 'improving';
+    if (secondAvg < firstAvg - 0.1) return 'declining';
+    return 'stable';
+  }
+
+  private calculateRecentPerformance(model: UserModel, concept: string): number {
+    const mastery = model.knowledgeProfile.conceptMastery.get(concept);
+    if (!mastery) return 0.5;
+    
+    // Simple recent performance calculation
+    const recentSessions = model.performance.sessionQuality.slice(-3);
+    if (recentSessions.length === 0) return mastery.masteryLevel;
+    
+    const recentAvg = recentSessions.reduce((sum, q) => sum + q, 0) / recentSessions.length;
+    return (mastery.masteryLevel + recentAvg) / 2;
+  }
+
   // More implementation methods...
   private analyzeUserPerformance(model: UserModel): any {
     return {

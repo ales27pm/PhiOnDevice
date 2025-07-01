@@ -5,7 +5,7 @@
  * natural language processing, and speech synthesis with the agent architecture.
  */
 
-import { EventEmitter } from 'events';
+import { EventEmitter } from '../utils/EventEmitter';
 import * as Speech from 'expo-speech';
 import { Audio } from 'expo-av';
 import { Platform } from 'react-native';
@@ -78,7 +78,7 @@ export class VoiceAgentInterface extends EventEmitter {
   constructor(agent?: AdvancedAgent) {
     super();
     
-    this.agent = agent;
+    this.agent = agent || null;
     this.config = {
       language: 'fr-CA',
       speechRate: 0.8,
@@ -109,9 +109,7 @@ export class VoiceAgentInterface extends EventEmitter {
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
         staysActiveInBackground: false,
-        interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
         shouldDuckAndroid: true,
-        interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
         playThroughEarpieceAndroid: false,
       });
 
@@ -192,27 +190,7 @@ export class VoiceAgentInterface extends EventEmitter {
 
       // Create new recording
       this.recording = new Audio.Recording();
-      await this.recording.prepareToRecordAsync({
-        android: {
-          extension: '.m4a',
-          outputFormat: Audio.RECORDING_OPTION_ANDROID_OUTPUT_FORMAT_MPEG_4,
-          audioEncoder: Audio.RECORDING_OPTION_ANDROID_AUDIO_ENCODER_AAC,
-          sampleRate: 44100,
-          numberOfChannels: 2,
-          bitRate: 128000,
-        },
-        ios: {
-          extension: '.m4a',
-          outputFormat: Audio.RECORDING_OPTION_IOS_OUTPUT_FORMAT_MPEG4AAC,
-          audioQuality: Audio.RECORDING_OPTION_IOS_AUDIO_QUALITY_MAX,
-          sampleRate: 44100,
-          numberOfChannels: 2,
-          bitRate: 128000,
-          linearPCMBitDepth: 16,
-          linearPCMIsBigEndian: false,
-          linearPCMIsFloat: false,
-        },
-      });
+      await this.recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
 
       await this.recording.startAsync();
       this.isListening = true;
@@ -308,7 +286,6 @@ export class VoiceAgentInterface extends EventEmitter {
         language: this.config.language,
         rate: this.config.speechRate,
         pitch: this.config.pitch,
-        quality: Speech.VoiceQuality.Enhanced,
       };
 
       // Speak the text

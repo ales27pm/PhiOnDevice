@@ -385,7 +385,7 @@ export default function AdvancedAgentInterface() {
               onPress={() => setShowReasoningSteps(!showReasoningSteps)}
             >
               <Ionicons 
-                name="brain" 
+                name="bulb" 
                 size={20} 
                 color={showReasoningSteps ? "#3B82F6" : "#6B7280"} 
               />

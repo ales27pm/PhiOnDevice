@@ -495,7 +495,7 @@ export class AdvancedMathTools {
       confidence: 0.85,
     });
 
-    return [{ variable, value: 'π/4 + 2πn', domain: 'n ∈ ℤ' }];
+    return [{ variable, value: 'π/4 + 2πn' }];
   }
 
   private solveGeneral(

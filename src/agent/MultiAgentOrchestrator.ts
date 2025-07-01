@@ -5,7 +5,7 @@
  * through intelligent routing, task decomposition, and collaborative reasoning.
  */
 
-import { EventEmitter } from 'events';
+import { EventEmitter } from '../utils/EventEmitter';
 import {
   AdvancedAgent,
   AgentConfig,

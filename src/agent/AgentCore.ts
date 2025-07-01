@@ -9,7 +9,7 @@
  * - Dialogue Management (Orchestration layer)
  */
 
-import { EventEmitter } from 'events';
+import { EventEmitter } from '../utils/EventEmitter';
 import { Analytics } from '../utils/analytics';
 import { ErrorHandler, ReasoningError } from '../utils/errorHandler';
 
