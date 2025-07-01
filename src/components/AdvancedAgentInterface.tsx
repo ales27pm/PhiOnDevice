@@ -38,6 +38,7 @@ import {
 } from '../agent/AgentCore';
 import { cn } from '../utils/cn';
 import { Analytics } from '../utils/analytics';
+import SystemStatusDebug from './SystemStatusDebug';
 
 interface ConversationMessage extends AgentMessage {
   isStreaming?: boolean;
@@ -57,6 +58,7 @@ export default function AdvancedAgentInterface() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showReasoningSteps, setShowReasoningSteps] = useState(true);
   const [agentMode, setAgentMode] = useState<'math' | 'quebec' | 'tutor'>('tutor');
+  const [systemStatus, setSystemStatus] = useState<any>(null);
   
   // Real-time reasoning state
   const [currentReasoningSteps, setCurrentReasoningSteps] = useState<ReasoningTrace[]>([]);
@@ -72,6 +74,16 @@ export default function AdvancedAgentInterface() {
 
   const initializeAgent = async () => {
     try {
+      // Initialize native LLM first for local-first operation
+      console.log('🚀 Initializing Advanced Agent System...');
+      const nativeLLMReady = await agentFactory.initializeNativeLLM();
+      
+      if (nativeLLMReady) {
+        console.log('✅ Native Phi-4-mini-reasoning model loaded successfully');
+      } else {
+        console.log('⚠️ Using fallback external API reasoning');
+      }
+      
       let newAgent: AdvancedAgent;
       
       switch (agentMode) {
@@ -89,13 +101,23 @@ export default function AdvancedAgentInterface() {
       
       setAgent(newAgent);
       
-      // Add welcome message
+      // Get system status for welcome message
+      const status = await agentFactory.getSystemStatus();
+      setSystemStatus(status);
+      
+      // Add welcome message with system info
       const welcomeMessage: ConversationMessage = {
         id: `welcome_${Date.now()}`,
         role: 'assistant',
-        content: getWelcomeMessage(agentMode),
+        content: getWelcomeMessage(agentMode, status),
         timestamp: Date.now(),
-        metadata: { confidence: 1.0 },
+        metadata: { 
+          confidence: 1.0,
+          system_info: {
+            nativeLLM: status.nativeLLMLoaded,
+            modelInfo: status.nativeModelInfo
+          }
+        },
       };
       
       setMessages([welcomeMessage]);
@@ -111,15 +133,19 @@ export default function AdvancedAgentInterface() {
     }
   };
 
-  const getWelcomeMessage = (mode: string): string => {
+  const getWelcomeMessage = (mode: string, systemStatus?: any): string => {
+    const nativeStatus = systemStatus?.nativeLLMLoaded ? 
+      "\n\n🧠 **Système Local Phi-4-mini-reasoning activé** - Traitement 100% privé sur votre appareil" :
+      "\n\n☁️ Utilisant le raisonnement externe (API)";
+    
     switch (mode) {
       case 'math':
-        return "🧮 Salut ! Je suis ton assistant mathématique spécialisé. Je peux résoudre des équations, expliquer des concepts et t'aider avec tes devoirs de maths !";
+        return "🧮 Salut ! Je suis ton assistant mathématique spécialisé. Je peux résoudre des équations, expliquer des concepts et t'aider avec tes devoirs de maths !" + nativeStatus;
       case 'quebec':
-        return "👋 Salut ! Ça va bien ? Je suis ton assistant québécois pis je suis là pour t'aider avec toutes sortes d'affaires. Qu'est-ce que je peux faire pour toi ?";
+        return "👋 Salut ! Ça va bien ? Je suis ton assistant québécois pis je suis là pour t'aider avec toutes sortes d'affaires. Qu'est-ce que je peux faire pour toi ?" + nativeStatus;
       case 'tutor':
       default:
-        return "🎓 Bonjour ! Je suis votre tuteur personnel en mathématiques et raisonnement logique. Je peux vous expliquer des concepts, résoudre des problèmes étape par étape, et m'adapter à votre niveau.";
+        return "🎓 Bonjour ! Je suis votre tuteur personnel en mathématiques et raisonnement logique. Je peux vous expliquer des concepts, résoudre des problèmes étape par étape, et m'adapter à votre niveau." + nativeStatus;
     }
   };
 
@@ -365,14 +391,35 @@ export default function AdvancedAgentInterface() {
       {/* Header */}
       <View className="bg-white border-b border-gray-200 px-4 py-3">
         <View className="flex-row items-center justify-between">
-          <View>
-            <Text className="text-lg font-semibold text-gray-900">
-              Agent Avancé
-            </Text>
+          <View className="flex-1">
+            <View className="flex-row items-center space-x-2">
+              <Text className="text-lg font-semibold text-gray-900">
+                Agent Avancé
+              </Text>
+              {systemStatus?.nativeLLMLoaded && (
+                <View className="bg-green-100 px-2 py-1 rounded-full">
+                  <Text className="text-xs font-medium text-green-800">
+                    🧠 Local
+                  </Text>
+                </View>
+              )}
+              {systemStatus && !systemStatus.nativeLLMLoaded && (
+                <View className="bg-blue-100 px-2 py-1 rounded-full">
+                  <Text className="text-xs font-medium text-blue-800">
+                    ☁️ API
+                  </Text>
+                </View>
+              )}
+            </View>
             <Text className="text-sm text-gray-600">
               {agentMode === 'math' && "Mode Mathématiques"}
               {agentMode === 'quebec' && "Mode Québécois"}
               {agentMode === 'tutor' && "Mode Tuteur"}
+              {systemStatus?.nativeModelInfo && (
+                <Text className="text-xs text-gray-500">
+                  {" • "}{systemStatus.nativeModelInfo.modelName}
+                </Text>
+              )}
             </Text>
           </View>
           
@@ -432,6 +479,9 @@ export default function AdvancedAgentInterface() {
         keyboardShouldPersistTaps="handled"
       >
         <View className="py-4">
+          {/* System Status Debug Component */}
+          <SystemStatusDebug />
+          
           {messages.map(renderMessage)}
           {renderRealtimeReasoning()}
         </View>

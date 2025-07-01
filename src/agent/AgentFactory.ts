@@ -28,6 +28,7 @@ import DialogueManager from './DialogueManager';
 import ReactAgent from './ReactAgent';
 import { generateNativeReasoning, isNativeLLMSupported } from '../api/phi4-reasoning-native';
 import { generateEnhancedReasoning } from '../api/enhanced-phi4-reasoning';
+import { nativePhi4LLM, getModelBundlePath } from '../api/nativePhi4LLM';
 import { Analytics } from '../utils/analytics';
 import { ErrorHandler } from '../utils/errorHandler';
 
@@ -234,23 +235,52 @@ class PlanningModule implements IPlanningModule {
       let confidence = 0.8;
       let toolCalls: ToolCall[] = [];
 
-      // Use native Phi-4 reasoning if available
-      if (isNativeLLMSupported && config.enableToolCalling) {
-        const result = await generateNativeReasoning(
-          input.cleanedText,
-          (step) => reasoning.push(step),
-          undefined, // No token callback for planning
-        );
-        
-        response = result.solution;
-        confidence = 0.9;
-        
-        // Analyze if tools are needed
-        if (await this.shouldUseTools(input)) {
-          toolCalls = await this.planToolSequence(input);
+      // Always prioritize native Phi-4 reasoning for local-first architecture
+      const isNativeReady = isNativeLLMSupported && await nativePhi4LLM.isModelLoaded();
+      console.log(`🧠 Reasoning Method: ${isNativeReady ? 'Local Phi-4-mini-reasoning' : 'External API'}`);
+      
+      if (isNativeReady) {
+        try {
+          console.log('🔒 Processing with local Phi-4-mini-reasoning model...');
+          const result = await generateNativeReasoning(
+            input.cleanedText,
+            (step) => reasoning.push(step),
+            undefined, // No token callback for planning
+          );
+          
+          response = result.solution;
+          confidence = 0.95; // Higher confidence for local reasoning
+          
+          // Add a reasoning step indicating local processing
+          reasoning.unshift({
+            step: 0,
+            type: 'think',
+            content: '🧠 Traitement local avec Phi-4-mini-reasoning (100% privé)',
+            confidence: 1.0,
+          });
+          
+          console.log('✅ Local Phi-4 reasoning completed successfully');
+        } catch (error) {
+          console.log('⚠️ Local Phi-4 failed, falling back to external API:', (error as Error).message);
+          const result = await generateEnhancedReasoning(
+            input.cleanedText,
+            (step) => reasoning.push(step),
+          );
+          
+          response = result.solution;
+          confidence = result.tokensPerSecond > 20 ? 0.8 : 0.6;
+          
+          // Add a reasoning step indicating fallback
+          reasoning.unshift({
+            step: 0,
+            type: 'observe',
+            content: '☁️ Utilisation du raisonnement externe (API) - Local non disponible',
+            confidence: 0.7,
+          });
         }
       } else {
-        // Fallback to enhanced reasoning
+        // Fallback to enhanced reasoning when native not available
+        console.log('🌐 Using external API reasoning (local LLM not available)');
         const result = await generateEnhancedReasoning(
           input.cleanedText,
           (step) => reasoning.push(step),
@@ -258,6 +288,19 @@ class PlanningModule implements IPlanningModule {
         
         response = result.solution;
         confidence = result.tokensPerSecond > 20 ? 0.8 : 0.6;
+        
+        // Add a reasoning step indicating external processing
+        reasoning.unshift({
+          step: 0,
+          type: 'observe',
+          content: '☁️ Traitement avec API externe - LLM local non disponible',
+          confidence: 0.7,
+        });
+      }
+      
+      // Analyze if tools are needed regardless of reasoning method
+      if (await this.shouldUseTools(input)) {
+        toolCalls = await this.planToolSequence(input);
       }
 
       return {
@@ -508,11 +551,62 @@ export class AgentFactory {
   }
 
   /**
+   * Initialize the native local LLM for local-first operation
+   */
+  async initializeNativeLLM(): Promise<boolean> {
+    if (!isNativeLLMSupported) {
+      console.log('⚠️ Native LLM not supported on this platform');
+      return false;
+    }
+
+    try {
+      console.log('🚀 Initializing native Phi-4-mini-reasoning model...');
+      
+      const modelPath = getModelBundlePath();
+      const success = await nativePhi4LLM.loadModel(modelPath);
+      
+      if (success) {
+        // Optimize for neural engine
+        await nativePhi4LLM.setComputeUnits('cpuAndNeuralEngine');
+        await nativePhi4LLM.setQuantizationMode('dynamic');
+        
+        const modelInfo = await nativePhi4LLM.getModelInfo();
+        console.log('✅ Native Phi-4 model loaded successfully:');
+        console.log(`   Model: ${modelInfo.modelName}`);
+        console.log(`   Version: ${modelInfo.version}`);
+        console.log(`   Parameters: ${modelInfo.parameterCount}`);
+        console.log(`   Memory: ${(modelInfo.memoryUsage / 1024 / 1024).toFixed(1)}MB`);
+        
+        Analytics.track('native_llm_initialized', {
+          modelName: modelInfo.modelName,
+          version: modelInfo.version,
+          memoryUsage: modelInfo.memoryUsage,
+        });
+        
+        return true;
+      }
+      
+      return false;
+      
+    } catch (error) {
+      console.log('❌ Failed to initialize native LLM:', (error as Error).message);
+      ErrorHandler.logError(error as Error, 'AgentFactory.initializeNativeLLM');
+      return false;
+    }
+  }
+
+  /**
    * Get agent capabilities and status
    */
   async getSystemStatus(): Promise<any> {
+    const nativeStatus = await nativePhi4LLM.diagnose();
+    
     return {
       nativeLLMSupported: isNativeLLMSupported,
+      nativeLLMLoaded: nativeStatus.isModelLoaded,
+      nativeModelInfo: nativeStatus.modelInfo,
+      nativePerformance: nativeStatus.performanceMetrics,
+      memoryUsage: nativeStatus.memoryUsage,
       availableModules: [
         'perception',
         'planning', 
