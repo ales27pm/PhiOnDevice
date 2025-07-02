@@ -13,10 +13,15 @@ const mockNativePhi4LLM: NativePhi4LLMSpec = {
   getModelInfo: jest.fn().mockResolvedValue({
     modelName: 'phi-4-mini-reasoning',
     version: '1.0.0',
-    parameterCount: 14000000000,
+    modelPath: '/test/path/model.mlpackage',
+    isLoaded: true,
+    parameterCount: '14B',
+    quantization: 'linear',
+    contextLength: 4096,
+    vocabularySize: 32000,
     memoryUsage: 8589934592,
-    supportedComputeUnits: ['neural_engine', 'gpu', 'cpu'],
-    quantizationMode: 'int4'
+    supportedComputeUnits: ['cpuAndNeuralEngine', 'cpuAndGPU', 'cpuOnly'],
+    quantizationMode: 'linear'
   }),
   generateText: jest.fn().mockResolvedValue({
     text: 'Test response',
@@ -32,10 +37,16 @@ const mockNativePhi4LLM: NativePhi4LLMSpec = {
   getTokenCount: jest.fn().mockResolvedValue(5),
   getPerformanceMetrics: jest.fn().mockResolvedValue({
     totalGenerations: 100,
+    tokensPerSecond: 25.5,
+    successRate: 0.95,
+    prefillTimeMs: 50,
+    decodeTimeMs: 350,
+    totalTimeMs: 400,
+    memoryUsageMB: 512,
+    accelerator: 'ANE',
     averageTokensPerSecond: 25.5,
     averageInferenceTimeMs: 400,
     totalInferenceTimeMs: 40000,
-    successRate: 0.95,
     errorCount: 5
   }),
   warmupModel: jest.fn().mockResolvedValue(undefined),
@@ -97,10 +108,15 @@ describe('NativePhi4LLM TurboModule', () => {
       expect(modelInfo).toEqual({
         modelName: 'phi-4-mini-reasoning',
         version: '1.0.0',
-        parameterCount: 14000000000,
+        modelPath: '/test/path/model.mlpackage',
+        isLoaded: true,
+        parameterCount: '14B',
+        quantization: 'linear',
+        contextLength: 4096,
+        vocabularySize: 32000,
         memoryUsage: 8589934592,
-        supportedComputeUnits: ['neural_engine', 'gpu', 'cpu'],
-        quantizationMode: 'int4'
+        supportedComputeUnits: ['cpuAndNeuralEngine', 'cpuAndGPU', 'cpuOnly'],
+        quantizationMode: 'linear'
       });
     });
   });
@@ -180,10 +196,16 @@ describe('NativePhi4LLM TurboModule', () => {
       
       expect(metrics).toEqual({
         totalGenerations: 100,
+        tokensPerSecond: 25.5,
+        successRate: 0.95,
+        prefillTimeMs: 50,
+        decodeTimeMs: 350,
+        totalTimeMs: 400,
+        memoryUsageMB: 512,
+        accelerator: 'ANE',
         averageTokensPerSecond: 25.5,
         averageInferenceTimeMs: 400,
         totalInferenceTimeMs: 40000,
-        successRate: 0.95,
         errorCount: 5
       });
     });
@@ -212,25 +234,24 @@ describe('NativePhi4LLM TurboModule', () => {
 
   describe('Configuration', () => {
     it('should set compute units', async () => {
-      await nativeModule.setComputeUnits('neural_engine');
-      expect(mockNativePhi4LLM.setComputeUnits).toHaveBeenCalledWith('neural_engine');
+      await nativeModule.setComputeUnits('cpuAndNeuralEngine');
+      expect(mockNativePhi4LLM.setComputeUnits).toHaveBeenCalledWith('cpuAndNeuralEngine');
     });
 
     it('should set quantization mode', async () => {
-      await nativeModule.setQuantizationMode('int4');
-      expect(mockNativePhi4LLM.setQuantizationMode).toHaveBeenCalledWith('int4');
+      await nativeModule.setQuantizationMode('linear');
+      expect(mockNativePhi4LLM.setQuantizationMode).toHaveBeenCalledWith('linear');
     });
   });
 
   describe('Event Handling', () => {
     it('should add event listeners', () => {
-      const callback = jest.fn();
-      nativeModule.addListener('onTokenGenerated', callback);
-      expect(mockNativePhi4LLM.addListener).toHaveBeenCalledWith('onTokenGenerated', callback);
+      nativeModule.addListener?.('onTokenGenerated');
+      expect(mockNativePhi4LLM.addListener).toHaveBeenCalledWith('onTokenGenerated');
     });
 
     it('should remove event listeners', () => {
-      nativeModule.removeListeners(5);
+      nativeModule.removeListeners?.(5);
       expect(mockNativePhi4LLM.removeListeners).toHaveBeenCalledWith(5);
     });
   });

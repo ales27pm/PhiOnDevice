@@ -575,7 +575,7 @@ export class AgentFactory {
         console.log(`   Model: ${modelInfo.modelName}`);
         console.log(`   Version: ${modelInfo.version}`);
         console.log(`   Parameters: ${modelInfo.parameterCount}`);
-        console.log(`   Memory: ${(modelInfo.memoryUsage / 1024 / 1024).toFixed(1)}MB`);
+        console.log(`   Memory: ${modelInfo.memoryUsage ? (modelInfo.memoryUsage / 1024 / 1024).toFixed(1) + 'MB' : 'Unknown'}`);
         
         Analytics.track('native_llm_initialized', {
           modelName: modelInfo.modelName,

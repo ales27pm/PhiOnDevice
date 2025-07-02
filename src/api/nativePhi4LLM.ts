@@ -9,6 +9,34 @@ import type {
 import { Analytics } from '../utils/analytics';
 import { ErrorHandler, ReasoningError } from '../utils/errorHandler';
 
+// Enum mapping helpers for legacy compatibility
+const quantizationMap: Record<string, 'none' | 'linear' | 'dynamic'> = {
+  int4: 'linear',
+  int8: 'linear',
+  none: 'none',
+  linear: 'linear',
+  dynamic: 'dynamic'
+};
+
+const computeUnitMap: Record<string, 'all' | 'cpuOnly' | 'cpuAndGPU' | 'cpuAndNeuralEngine'> = {
+  neural_engine: 'cpuAndNeuralEngine',
+  gpu: 'cpuAndGPU',
+  cpu: 'cpuOnly',
+  all: 'all',
+  cpuOnly: 'cpuOnly',
+  cpuAndGPU: 'cpuAndGPU',
+  cpuAndNeuralEngine: 'cpuAndNeuralEngine'
+};
+
+// Helper functions for enum mapping
+export function mapQuantization(userInput: string): 'none' | 'linear' | 'dynamic' {
+  return quantizationMap[userInput] || 'none';
+}
+
+export function mapComputeUnit(userInput: string): 'all' | 'cpuOnly' | 'cpuAndGPU' | 'cpuAndNeuralEngine' {
+  return computeUnitMap[userInput] || 'all';
+}
+
 // Event emitter for streaming tokens (created lazily)
 let eventEmitter: NativeEventEmitter | null = null;
 
@@ -403,13 +431,14 @@ class Phi4NativeLLM {
 
   // MARK: - Model Configuration
 
-  async setComputeUnits(units: 'all' | 'cpuOnly' | 'cpuAndGPU' | 'cpuAndNeuralEngine'): Promise<void> {
+  async setComputeUnits(units: 'all' | 'cpuOnly' | 'cpuAndGPU' | 'cpuAndNeuralEngine' | string): Promise<void> {
     try {
       this.ensureNativeModule();
-      await NativePhi4LLM!.setComputeUnits(units);
+      const mappedUnits = mapComputeUnit(units);
+      await NativePhi4LLM!.setComputeUnits(mappedUnits);
       
-      Analytics.track('native_compute_units_changed', { units });
-      console.log(`✅ Compute units set to: ${units}`);
+      Analytics.track('native_compute_units_changed', { units: mappedUnits, originalInput: units });
+      console.log(`✅ Compute units set to: ${mappedUnits} (from input: ${units})`);
       
     } catch (error) {
       ErrorHandler.logError(error as Error, 'NativePhi4LLM.setComputeUnits');
@@ -417,13 +446,14 @@ class Phi4NativeLLM {
     }
   }
 
-  async setQuantizationMode(mode: 'none' | 'linear' | 'dynamic'): Promise<void> {
+  async setQuantizationMode(mode: 'none' | 'linear' | 'dynamic' | string): Promise<void> {
     try {
       this.ensureNativeModule();
-      await NativePhi4LLM!.setQuantizationMode(mode);
+      const mappedMode = mapQuantization(mode);
+      await NativePhi4LLM!.setQuantizationMode(mappedMode);
       
-      Analytics.track('native_quantization_changed', { mode });
-      console.log(`✅ Quantization mode set to: ${mode}`);
+      Analytics.track('native_quantization_changed', { mode: mappedMode, originalInput: mode });
+      console.log(`✅ Quantization mode set to: ${mappedMode} (from input: ${mode})`);
       
     } catch (error) {
       ErrorHandler.logError(error as Error, 'NativePhi4LLM.setQuantizationMode');
@@ -522,4 +552,20 @@ export type {
   Phi4GenerationResult,
   Phi4ModelInfo,
   Phi4PerformanceMetrics,
+};
+
+// Legacy compatibility exports
+export const QuantizationMode = {
+  INT4: 'linear' as const,
+  INT8: 'linear' as const,
+  NONE: 'none' as const,
+  LINEAR: 'linear' as const,
+  DYNAMIC: 'dynamic' as const
+};
+
+export const ComputeUnit = {
+  NEURAL_ENGINE: 'cpuAndNeuralEngine' as const,
+  GPU: 'cpuAndGPU' as const,
+  CPU: 'cpuOnly' as const,
+  ALL: 'all' as const
 };

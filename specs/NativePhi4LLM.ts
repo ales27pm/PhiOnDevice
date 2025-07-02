@@ -19,21 +19,32 @@ export interface Phi4GenerationResult {
 }
 
 export interface Phi4ModelInfo {
+  modelName: string;
+  version: string;
   modelPath: string;
   isLoaded: boolean;
   parameterCount: string;
   quantization: string;
   contextLength: number;
   vocabularySize: number;
+  memoryUsage?: number;
+  supportedComputeUnits?: string[];
+  quantizationMode?: string;
 }
 
 export interface Phi4PerformanceMetrics {
+  totalGenerations: number;
+  tokensPerSecond: number;
+  successRate: number;
   prefillTimeMs: number;
   decodeTimeMs: number;
   totalTimeMs: number;
-  tokensPerSecond: number;
   memoryUsageMB: number;
   accelerator: 'CPU' | 'GPU' | 'ANE';
+  averageTokensPerSecond?: number;
+  averageInferenceTimeMs?: number;
+  totalInferenceTimeMs?: number;
+  errorCount?: number;
 }
 
 export interface Spec extends TurboModule {
@@ -75,7 +86,10 @@ export interface Spec extends TurboModule {
   // Model configuration
   setComputeUnits(units: 'all' | 'cpuOnly' | 'cpuAndGPU' | 'cpuAndNeuralEngine'): Promise<void>;
   setQuantizationMode(mode: 'none' | 'linear' | 'dynamic'): Promise<void>;
+
+  // EventEmitter compatibility
+  addListener?(eventName: string): void;
+  removeListeners?(count: number): void;
 }
 
-// Use get() instead of getEnforcing() to handle cases where the native module isn't compiled
-export default TurboModuleRegistry.get<Spec>('NativePhi4LLM');
+export default TurboModuleRegistry.getEnforcing<Spec>('NativePhi4LLM');

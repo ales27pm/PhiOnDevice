@@ -409,20 +409,26 @@ class CoreMLConverter:
             # Apply quantization
             if quantization == "int4":
                 logger.info("Applying INT4 quantization...")
-                from coremltools.optimize.coreml import (
-                    OpLinearQuantizerConfig,
-                    OptimizationConfig,
-                    linear_quantize_weights
-                )
-                
-                op_config = OpLinearQuantizerConfig(
-                    mode="linear_symmetric",
-                    dtype="int4",
-                    granularity="per_block",
-                    block_size=32
-                )
-                config = OptimizationConfig(global_config=op_config)
-                mlmodel = linear_quantize_weights(mlmodel, config=config)
+                try:
+                    from coremltools.optimize.coreml import (
+                        OpLinearQuantizerConfig,
+                        OptimizationConfig,
+                        linear_quantize_weights
+                    )
+                    
+                    op_config = OpLinearQuantizerConfig(
+                        mode="linear_symmetric",
+                        dtype="int4",
+                        granularity="per_block",
+                        block_size=32
+                    )
+                    config = OptimizationConfig(global_config=op_config)
+                    mlmodel = linear_quantize_weights(mlmodel, config=config)
+                    logger.info("✅ INT4 quantization applied successfully")
+                except ImportError:
+                    logger.warning("Core ML optimization tools not available, skipping quantization")
+                except Exception as e:
+                    logger.warning(f"Quantization failed: {e}, proceeding without quantization")
             
             # Add metadata
             mlmodel.author = "Vibecode - Québécois French Mathematical Assistant"
